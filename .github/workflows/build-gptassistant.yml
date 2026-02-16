@@ -1,0 +1,37 @@
+name: Build GptAssistantApp
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'GptAssistantApp/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./GptAssistantApp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gptassistant-app-debug
+          path: GptAssistantApp/app/build/outputs/apk/debug/*.apk
