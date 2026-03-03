@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: claudeui-app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ClaudeUI/app/build/outputs/apk/debug/app-debug.apk
