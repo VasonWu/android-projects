@@ -75,6 +75,36 @@ public class MainActivity extends AppCompatActivity {
         initSpeechRecognizer();
         requestPermissions();
         bindToService();
+
+        handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        if (intent == null) return;
+
+        String action = intent.getAction();
+
+        if (Intent.ACTION_ASSIST.equals(action) ||
+            "android.intent.action.VOICE_ASSIST".equals(action) ||
+            Intent.ACTION_SEARCH.equals(action) ||
+            "android.speech.action.WEB_SEARCH".equals(action)) {
+
+            if (isRecording) {
+                speechRecognizerManager.stopListening();
+            }
+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED) {
+                speechRecognizerManager.startListening();
+            }
+        }
     }
 
     private void initViews() {

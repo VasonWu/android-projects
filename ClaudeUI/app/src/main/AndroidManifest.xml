@@ -24,12 +24,42 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ClaudeUI.BottomSheet">
+            android:theme="@style/Theme.ClaudeUI.BottomSheet"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Voice assistant / Assist action -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Voice search -->
+            <intent-filter>
+                <action android:name="android.speech.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Search action -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Voice interaction (for Android 12+) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+
+        <!-- Searchable configuration -->
+        <meta-data
+            android:name="android.app.searchable"
+            android:resource="@xml/searchable" />
     </application>
 
 </manifest>
