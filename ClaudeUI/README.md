@@ -26,8 +26,9 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 WebSocket 服务器地址在 `app/src/main/java/com/example/helloworld/network/WebSocketClient.java` 中配置：
 
-- 模拟器访问主机: `ws://10.0.2.2:8080`
-- 局域网设备: `ws://192.168.x.x:8080`
+- 默认: `ws://127.0.0.1:8765`
+- 模拟器访问主机: `ws://10.0.2.2:8765`
+- 局域网设备: `ws://192.168.x.x:8765`
 
 ## 通信协议
 
