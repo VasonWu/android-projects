@@ -58,7 +58,7 @@ WebSocket 服务器地址在 `app/src/main/java/com/example/helloworld/network/W
 
 ## 权限
 
-- `INTERNET - 网络连接
+- `INTERNET` - 网络连接
 - `RECORD_AUDIO` - 语音识别
 - `FOREGROUND_SERVICE` - 前台服务
 - `POST_NOTIFICATIONS` - 通知
