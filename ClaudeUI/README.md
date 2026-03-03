@@ -13,12 +13,10 @@
 
 ## 配置 WebSocket 地址
 
-在 `app/src/main/java/com/claudeui/app/network/WebSocketClient.kt` 中修改：
+在 `app/src/main/java/com/claudeui/app/network/WebSocketClient.java` 中修改：
 
-```kotlin
-class WebSocketClient(
-    private val serverUrl: String = "ws://10.0.2.2:8765"  // 修改这里
-)
+```java
+private static final String SERVER_URL = "ws://10.0.2.2:8765";  // 修改这里
 ```
 
 - 模拟器访问本机: `ws://10.0.2.2:8765`

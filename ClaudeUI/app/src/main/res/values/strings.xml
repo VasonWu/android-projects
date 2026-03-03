@@ -11,6 +11,6 @@
     <string name="button_send">发送</string>
     <string name="button_cancel">取消</string>
     <string name="permission_audio_required">需要录音权限才能使用语音输入</string>
-    <string name="tap_to_switch_to_text">点击切换到文本输入</string>
-    <string name="tap_to_switch_to_voice">点击切换到语音输入</string>
+    <string name="tap_to_switch_to_text">切换到文本输入</string>
+    <string name="tap_to_switch_to_voice">切换到语音输入</string>
 </resources>

@@ -1,3 +1,3 @@
 # Add project specific ProGuard rules here.
--keepattributes SourceFile,LineNumberTable
--renamesourcefileattribute SourceFile
+-keepattributes *Annotation*
+-keep class com.claudeui.app.** { *; }
