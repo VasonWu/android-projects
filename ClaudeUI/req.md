@@ -4,6 +4,8 @@
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| 2.2 | 2026-03-04 | 自动权限申请，MANAGE_EXTERNAL_STORAGE 支持 |
+| 2.1 | 2026-03-04 | 修复存储权限问题 |
 | 2.0 | 2026-03-04 | 重新设计音频播放架构，直接 Intent 通信 |
 | 1.9 | 2026-03-04 | 修复通知栏显示问题 |
 | 1.8 | 2026-03-04 | 添加音频播放功能、通知栏颜色状态 |
@@ -107,6 +109,32 @@ Action: com.example.helloworld.CLEAR   - 清空列表
 
 ---
 
+### 4. 自动权限申请 (v2.2+)
+
+#### 4.1 功能概述
+- App 启动时自动申请所有必需权限
+- 每次 onResume 时重新检查权限状态
+- 自动打开 MANAGE_EXTERNAL_STORAGE 设置页面
+
+#### 4.2 权限列表
+
+| 权限 | 用途 | 申请方式 |
+|------|------|----------|
+| `MANAGE_EXTERNAL_STORAGE` | 访问所有文件 (Android 11+) | 自动打开设置页面，需手动开启 |
+| `RECORD_AUDIO` | 语音输入 | 运行时权限申请 |
+| `POST_NOTIFICATIONS` | 显示通知 (Android 13+) | 运行时权限申请 |
+| `READ_EXTERNAL_STORAGE` | 读取存储 (Android < 13) | 运行时权限申请 |
+| `WRITE_EXTERNAL_STORAGE` | 写入存储 (Android < 13) | 运行时权限申请 |
+| `READ_MEDIA_AUDIO` | 读取音频 (Android 13+) | 运行时权限申请 |
+
+#### 4.3 MANAGE_EXTERNAL_STORAGE 特殊说明
+- 这是特殊权限，无法像普通权限那样直接申请
+- App 会自动打开系统设置页面
+- 需要手动在设置中开启"允许访问所有文件"
+- 开启后，App 可以访问整个 /sdcard 目录
+
+---
+
 ## WebSocket 协议
 
 ### 连接信息
@@ -155,7 +183,7 @@ Action: com.example.helloworld.CLEAR   - 清空列表
 
 ## 架构说明
 
-### 音频播放 Intent 流程 (v2.0)
+### 音频播放 Intent 流程 (v2.0+)
 ```
 pipixia-audio-player.py (技能脚本)
     ↓ adb shell am startservice
@@ -168,6 +196,27 @@ MediaPlayer 播放
 - v1.x: 通过 ClaudeWebSocketService 转发
 - v2.0+: 直接发送给 AudioPlayerManager，简化架构
 
+### 权限申请流程 (v2.2+)
+```
+App 启动 (onCreate)
+    ↓
+requestAllPermissions()
+    ↓
+┌─────────────────────────────────────┐
+│ 检查 MANAGE_EXTERNAL_STORAGE        │
+│ (Android 11+)                        │
+└─────────────────────────────────────┘
+    ↓ 未授权
+打开设置页面
+    ↓
+┌─────────────────────────────────────┐
+│ 申请其他运行时权限                  │
+│ (RECORD_AUDIO, NOTIFICATIONS 等)   │
+└─────────────────────────────────────┘
+    ↓
+onResume() 时重新检查
+```
+
 ---
 
 ## 权限
@@ -179,6 +228,10 @@ MediaPlayer 播放
 | `FOREGROUND_SERVICE` | 前台服务 |
 | `POST_NOTIFICATIONS` | 显示通知 |
 | `MODIFY_AUDIO_SETTINGS` | 音频播放 |
+| `READ_EXTERNAL_STORAGE` | 读取存储 (Android < 13) |
+| `WRITE_EXTERNAL_STORAGE` | 写入存储 (Android < 13) |
+| `MANAGE_EXTERNAL_STORAGE` | 访问所有文件 (Android 11+) |
+| `READ_MEDIA_AUDIO` | 读取音频 (Android 13+) |
 
 ---
 
@@ -220,5 +273,5 @@ pipixia-audio-player clear   # 清空列表
 
 | 版本 | versionCode | versionName |
 |------|-------------|-------------|
-| 当前 | 11 | 2.0 |
+| 当前 | 13 | 2.2 |
 
