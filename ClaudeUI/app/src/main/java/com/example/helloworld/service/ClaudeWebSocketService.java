@@ -21,10 +21,14 @@ import com.example.helloworld.R;
 import com.example.helloworld.network.WebSocketClient;
 import com.example.helloworld.util.ClientIdManager;
 
+import java.util.LinkedList;
+import java.util.List;
+
 public class ClaudeWebSocketService extends Service {
     private static final String TAG = "ClaudeWebSocketService";
     private static final String CHANNEL_ID = "ClaudeWebSocketChannel";
     private static final int NOTIFICATION_ID = 1;
+    private static final int MAX_HISTORY_LINES = 50;
 
     public enum Status {
         IDLE,
@@ -43,7 +47,7 @@ public class ClaudeWebSocketService extends Service {
     private ClientIdManager clientIdManager;
     private final MutableLiveData<Status> statusLiveData = new MutableLiveData<>(Status.IDLE);
     private final MutableLiveData<String> outputLiveData = new MutableLiveData<>();
-    private final StringBuilder outputBuffer = new StringBuilder();
+    private final List<String> outputLines = new LinkedList<>();
     private String currentSessionId;
 
     public class LocalBinder extends Binder {
@@ -171,7 +175,11 @@ public class ClaudeWebSocketService extends Service {
     }
 
     public String getOutputBuffer() {
-        return outputBuffer.toString();
+        StringBuilder sb = new StringBuilder();
+        for (String line : outputLines) {
+            sb.append(line);
+        }
+        return sb.toString();
     }
 
     public Status getCurrentStatus() {
@@ -231,7 +239,7 @@ public class ClaudeWebSocketService extends Service {
     }
 
     public void clearOutput() {
-        outputBuffer.setLength(0);
+        outputLines.clear();
         outputLiveData.setValue("");
     }
 
@@ -240,8 +248,23 @@ public class ClaudeWebSocketService extends Service {
     }
 
     private void appendOutput(String text) {
-        outputBuffer.append(text);
-        outputLiveData.postValue(outputBuffer.toString());
+        // 将文本按行分割并添加
+        String[] lines = text.split("(?<=\\n)");
+        for (String line : lines) {
+            outputLines.add(line);
+        }
+
+        // 限制最多 MAX_HISTORY_LINES 行
+        while (outputLines.size() > MAX_HISTORY_LINES) {
+            outputLines.remove(0);
+        }
+
+        // 更新 LiveData
+        StringBuilder sb = new StringBuilder();
+        for (String line : outputLines) {
+            sb.append(line);
+        }
+        outputLiveData.postValue(sb.toString());
     }
 
     private void createNotificationChannel() {

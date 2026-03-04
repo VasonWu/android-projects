@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.text.Spanned;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -27,6 +28,8 @@ import androidx.lifecycle.Observer;
 import com.example.helloworld.service.ClaudeWebSocketService;
 import com.example.helloworld.speech.SpeechRecognizerManager;
 
+import io.noties.markwon.Markwon;
+
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
@@ -37,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private ClaudeWebSocketService service;
     private boolean isServiceBound = false;
     private SpeechRecognizerManager speechRecognizerManager;
+    private Markwon markwon;
 
     private TextView statusText;
     private TextView outputText;
@@ -122,6 +126,9 @@ public class MainActivity extends AppCompatActivity {
         voiceModeButton = findViewById(R.id.voiceModeButton);
         newSessionButton = findViewById(R.id.newSessionButton);
 
+        // 初始化 Markwon
+        markwon = Markwon.create(this);
+
         setupClickListeners();
     }
 
@@ -159,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (isServiceBound) {
                     service.createSession();
+                    service.clearOutput();
                 }
             }
         });
@@ -248,7 +256,8 @@ public class MainActivity extends AppCompatActivity {
     private void observeService() {
         if (service == null) return;
 
-        outputText.setText(service.getOutputBuffer());
+        // 使用 Markwon 渲染初始内容
+        markwon.setMarkdown(outputText, service.getOutputBuffer());
         scrollToBottom();
 
         service.getStatusLiveData().observe(this, new Observer<ClaudeWebSocketService.Status>() {
@@ -261,7 +270,8 @@ public class MainActivity extends AppCompatActivity {
         service.getOutputLiveData().observe(this, new Observer<String>() {
             @Override
             public void onChanged(String output) {
-                outputText.setText(output);
+                // 使用 Markwon 渲染 Markdown 内容
+                markwon.setMarkdown(outputText, output);
                 scrollToBottom();
             }
         });
