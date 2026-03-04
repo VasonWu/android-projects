@@ -6,6 +6,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
@@ -18,9 +22,11 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.helloworld.MainActivity;
 import com.example.helloworld.R;
+import com.example.helloworld.audio.AudioPlayerManager;
 import com.example.helloworld.network.WebSocketClient;
 import com.example.helloworld.util.ClientIdManager;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,6 +35,13 @@ public class ClaudeWebSocketService extends Service {
     private static final String CHANNEL_ID = "ClaudeWebSocketChannel";
     private static final int NOTIFICATION_ID = 1;
     private static final int MAX_HISTORY_LINES = 50;
+
+    // Status colors (ARGB)
+    private static final int COLOR_BLUE = 0xFF2196F3;    // Connected/Idle - Blue
+    private static final int COLOR_GRAY = 0xFF9E9E9E;    // Disconnected - Gray
+    private static final int COLOR_RED = 0xFFF44336;     // Error - Red
+    private static final int COLOR_YELLOW = 0xFFFF9800;  // Connecting/Waiting - Yellow
+    private static final int COLOR_GREEN = 0xFF4CAF50;    // Listening/Receiving - Green
 
     public enum Status {
         IDLE,
@@ -62,7 +75,7 @@ public class ClaudeWebSocketService extends Service {
         Log.d(TAG, "Service created");
         clientIdManager = new ClientIdManager(this);
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, createNotification("Claude 连接中..."));
+        startForeground(NOTIFICATION_ID, createNotification());
         initWebSocket();
     }
 
@@ -74,14 +87,14 @@ public class ClaudeWebSocketService extends Service {
             public void onConnected() {
                 Log.d(TAG, "WebSocket connected");
                 setStatus(Status.CONNECTED);
-                updateNotification("Claude 已连接");
+                updateNotification();
             }
 
             @Override
             public void onDisconnected(String reason) {
                 Log.d(TAG, "WebSocket disconnected: " + reason);
                 setStatus(Status.DISCONNECTED);
-                updateNotification("Claude 断开连接");
+                updateNotification();
             }
 
             @Override
@@ -143,7 +156,24 @@ public class ClaudeWebSocketService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "Service started");
+        Log.d(TAG, "onStartCommand: " + (intent != null ? intent.getAction() : null));
+
+        // Handle audio playback intents
+        if (intent != null && intent.getAction() != null) {
+            String action = intent.getAction();
+
+            // Forward to AudioPlayerManager
+            Intent audioIntent = new Intent(this, AudioPlayerManager.class);
+            audioIntent.setAction(action);
+            audioIntent.putExtras(intent);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(audioIntent);
+            } else {
+                startService(audioIntent);
+            }
+        }
+
         return START_STICKY;
     }
 
@@ -246,6 +276,7 @@ public class ClaudeWebSocketService extends Service {
 
     private void setStatus(Status status) {
         statusLiveData.postValue(status);
+        updateNotification();
     }
 
     private void appendOutput(String text) {
@@ -268,14 +299,72 @@ public class ClaudeWebSocketService extends Service {
         outputLiveData.postValue(sb.toString());
     }
 
+    private int getStatusColor(Status status) {
+        switch (status) {
+            case CONNECTED:
+            case IDLE:
+                return COLOR_BLUE;
+            case CONNECTING:
+            case WAITING:
+            case SENDING:
+                return COLOR_YELLOW;
+            case LISTENING:
+            case RECEIVING:
+                return COLOR_GREEN;
+            case DISCONNECTED:
+                return COLOR_GRAY;
+            case ERROR:
+                return COLOR_RED;
+            default:
+                return COLOR_GRAY;
+        }
+    }
+
+    private String getStatusText(Status status) {
+        switch (status) {
+            case IDLE:
+                return "准备就绪";
+            case CONNECTING:
+                return "正在连接...";
+            case CONNECTED:
+                return "已连接";
+            case LISTENING:
+                return "正在聆听...";
+            case SENDING:
+                return "正在发送...";
+            case WAITING:
+                return "正在等待回复...";
+            case RECEIVING:
+                return "正在接收...";
+            case DISCONNECTED:
+                return "已断开连接";
+            case ERROR:
+                return "出错了";
+            default:
+                return "未知状态";
+        }
+    }
+
+    private Bitmap createColoredDot(int color) {
+        int size = 48;
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        Paint paint = new Paint();
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAntiAlias(true);
+        canvas.drawCircle(size / 2f, size / 2f, size / 2.5f, paint);
+        return bitmap;
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Claude WebSocket Service",
+                    "皮皮虾",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("保持 Claude 连接的后台服务");
+            channel.setDescription("皮皮虾助手服务");
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
@@ -283,7 +372,7 @@ public class ClaudeWebSocketService extends Service {
         }
     }
 
-    private Notification createNotification(String text) {
+    private Notification createNotification() {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this,
@@ -292,19 +381,27 @@ public class ClaudeWebSocketService extends Service {
                 PendingIntent.FLAG_IMMUTABLE
         );
 
+        Status status = statusLiveData.getValue();
+        if (status == null) status = Status.IDLE;
+
+        int color = getStatusColor(status);
+        String text = getStatusText(status);
+        Bitmap coloredDot = createColoredDot(color);
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Claude Assistant")
+                .setContentTitle("皮皮虾")
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setLargeIcon(coloredDot)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .build();
     }
 
-    private void updateNotification(String text) {
+    private void updateNotification() {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) {
-            manager.notify(NOTIFICATION_ID, createNotification(text));
+            manager.notify(NOTIFICATION_ID, createNotification());
         }
     }
 }
