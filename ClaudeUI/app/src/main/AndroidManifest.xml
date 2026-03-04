@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -24,8 +25,18 @@
         <service
             android:name=".audio.AudioPlayerManager"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="com.example.helloworld.PLAY" />
+                <action android:name="com.example.helloworld.PAUSE" />
+                <action android:name="com.example.helloworld.NEXT" />
+                <action android:name="com.example.helloworld.CLEAR" />
+                <action android:name="com.example.helloworld.ADD_TO_PLAYLIST" />
+                <action android:name="com.example.helloworld.SET_PLAYLIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".MainActivity"

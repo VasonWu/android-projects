@@ -4,6 +4,7 @@
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| 2.0 | 2026-03-04 | 重新设计音频播放架构，直接 Intent 通信 |
 | 1.9 | 2026-03-04 | 修复通知栏显示问题 |
 | 1.8 | 2026-03-04 | 添加音频播放功能、通知栏颜色状态 |
 | 1.7 | 2026-03-04 | 用户输入前缀、调换按钮位置、App名称 |
@@ -144,13 +145,28 @@ Action: com.example.helloworld.CLEAR   - 清空列表
 ### 1. ClaudeWebSocketService
 - 前台服务，保持 WebSocket 连接
 - 通知栏显示连接状态
-- 转发音频播放 Intent 给 AudioPlayerManager
 
 ### 2. AudioPlayerManager
 - 前台服务，管理音频播放
+- 直接接收外部 Intent (exported=true)
 - 播放列表管理
 - 通知栏控制按钮
 - MediaPlayer 封装
+
+## 架构说明
+
+### 音频播放 Intent 流程 (v2.0)
+```
+pipixia-audio-player.py (技能脚本)
+    ↓ adb shell am startservice
+AudioPlayerManager (直接接收)
+    ↓
+MediaPlayer 播放
+```
+
+**变更说明**:
+- v1.x: 通过 ClaudeWebSocketService 转发
+- v2.0+: 直接发送给 AudioPlayerManager，简化架构
 
 ---
 
@@ -204,5 +220,5 @@ pipixia-audio-player clear   # 清空列表
 
 | 版本 | versionCode | versionName |
 |------|-------------|-------------|
-| 当前 | 10 | 1.9 |
+| 当前 | 11 | 2.0 |
 

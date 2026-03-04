@@ -18,7 +18,6 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.helloworld.MainActivity;
 import com.example.helloworld.R;
-import com.example.helloworld.audio.AudioPlayerManager;
 import com.example.helloworld.network.WebSocketClient;
 import com.example.helloworld.util.ClientIdManager;
 
@@ -153,23 +152,6 @@ public class ClaudeWebSocketService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: " + (intent != null ? intent.getAction() : null));
-
-        // Handle audio playback intents
-        if (intent != null && intent.getAction() != null) {
-            String action = intent.getAction();
-
-            // Forward to AudioPlayerManager
-            Intent audioIntent = new Intent(this, AudioPlayerManager.class);
-            audioIntent.setAction(action);
-            audioIntent.putExtras(intent);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(audioIntent);
-            } else {
-                startService(audioIntent);
-            }
-        }
-
         return START_STICKY;
     }
 

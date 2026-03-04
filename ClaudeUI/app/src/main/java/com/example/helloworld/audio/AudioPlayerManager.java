@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
@@ -63,33 +62,7 @@ public class AudioPlayerManager extends Service {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action == null) return;
-
-            switch (action) {
-                case ACTION_PLAY:
-                    handlePlay();
-                    break;
-                case ACTION_PAUSE:
-                    handlePause();
-                    break;
-                case ACTION_NEXT:
-                    handleNext();
-                    break;
-                case ACTION_CLEAR:
-                    handleClear();
-                    break;
-                case ACTION_ADD_TO_PLAYLIST:
-                    String path = intent.getStringExtra(EXTRA_FILE_PATH);
-                    if (path != null) {
-                        addToPlaylist(path);
-                    }
-                    break;
-                case ACTION_SET_PLAYLIST:
-                    ArrayList<String> paths = intent.getStringArrayListExtra(EXTRA_FILE_PATH_LIST);
-                    if (paths != null) {
-                        setPlaylist(paths);
-                    }
-                    break;
-            }
+            handleIntentAction(intent, action);
         }
     };
 
@@ -169,32 +142,48 @@ public class AudioPlayerManager extends Service {
 
         // Handle intent actions immediately
         if (intent != null && intent.getAction() != null) {
-            String action = intent.getAction();
-            switch (action) {
-                case ACTION_ADD_TO_PLAYLIST:
-                    String path = intent.getStringExtra(EXTRA_FILE_PATH);
-                    if (path != null) {
-                        addToPlaylist(path);
-                    }
-                    break;
-                case ACTION_SET_PLAYLIST:
-                    ArrayList<String> paths = intent.getStringArrayListExtra(EXTRA_FILE_PATH_LIST);
-                    if (paths != null) {
-                        setPlaylist(paths);
-                    }
-                    break;
-                case ACTION_PLAY:
-                    handlePlay();
-                    break;
-                case ACTION_PAUSE:
-                    handlePause();
-                    break;
-            }
+            handleIntentAction(intent, intent.getAction());
         }
 
         // Show notification and make it foreground
         startForeground(NOTIFICATION_ID, buildNotification());
         return START_STICKY;
+    }
+
+    private void handleIntentAction(Intent intent, String action) {
+        Log.d(TAG, "handleIntentAction: " + action);
+        switch (action) {
+            case ACTION_ADD_TO_PLAYLIST:
+                String path = intent.getStringExtra(EXTRA_FILE_PATH);
+                if (path != null) {
+                    addToPlaylist(path);
+                } else {
+                    // Try to get from getData()
+                    Uri data = intent.getData();
+                    if (data != null) {
+                        addToPlaylist(data.getPath());
+                    }
+                }
+                break;
+            case ACTION_SET_PLAYLIST:
+                ArrayList<String> paths = intent.getStringArrayListExtra(EXTRA_FILE_PATH_LIST);
+                if (paths != null) {
+                    setPlaylist(paths);
+                }
+                break;
+            case ACTION_PLAY:
+                handlePlay();
+                break;
+            case ACTION_PAUSE:
+                handlePause();
+                break;
+            case ACTION_NEXT:
+                handleNext();
+                break;
+            case ACTION_CLEAR:
+                handleClear();
+                break;
+        }
     }
 
     private void handlePlay() {
