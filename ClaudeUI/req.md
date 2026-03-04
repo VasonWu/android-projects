@@ -4,6 +4,7 @@
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| 2.3 | 2026-03-04 | 固定签名密钥、APK 自定义命名 |
 | 2.2 | 2026-03-04 | 自动权限申请，MANAGE_EXTERNAL_STORAGE 支持 |
 | 2.1 | 2026-03-04 | 修复存储权限问题 |
 | 2.0 | 2026-03-04 | 重新设计音频播放架构，直接 Intent 通信 |
@@ -273,5 +274,45 @@ pipixia-audio-player clear   # 清空列表
 
 | 版本 | versionCode | versionName |
 |------|-------------|-------------|
-| 当前 | 13 | 2.2 |
+| 当前 | 14 | 2.3 |
+
+---
+
+## 构建配置 (v2.3+)
+
+### APK 命名规则
+APK 输出文件名格式:
+```
+皮皮虾-v{versionName}-{versionCode}-{yyyyMMdd}.apk
+```
+
+示例:
+```
+皮皮虾-v2.3-14-20260304.apk
+```
+
+### 签名配置
+- 使用固定的 debug.keystore（如果存在）
+- Keystore 位置: `ClaudeUI/keystore/debug.keystore`
+- Keystore 密码: `android`
+- Key 别名: `androiddebugkey`
+- Key 密码: `android`
+
+### 生成固定 keystore
+```bash
+keytool -genkey -v \
+  -keystore keystore/debug.keystore \
+  -storepass android \
+  -alias androiddebugkey \
+  -keypass android \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000 \
+  -dname "CN=Android Debug,O=Android,C=US"
+```
+
+### 说明
+- 如果 keystore 文件不存在，自动使用 Android SDK 默认签名
+- 使用固定 keystore 后，可以直接覆盖安装，无需卸载旧版本
+
 

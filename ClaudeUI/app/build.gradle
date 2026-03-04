@@ -9,6 +9,10 @@ configurations {
     }
 }
 
+def getBuildTime() {
+    return new Date().format('yyyyMMdd')
+}
+
 android {
     namespace 'com.example.helloworld'
     compileSdk 33
@@ -17,14 +21,47 @@ android {
         applicationId "com.example.helloworld"
         minSdk 23
         targetSdk 33
-        versionCode 13
-        versionName "2.2"
+        versionCode 14
+        versionName "2.3"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    // Try to use fixed keystore if it exists, otherwise use default
+    def keystoreFile = file("../keystore/debug.keystore")
+    if (keystoreFile.exists()) {
+        signingConfigs {
+            debug {
+                storeFile keystoreFile
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+        buildTypes {
+            debug {
+                signingConfig signingConfigs.debug
+                minifyEnabled false
+            }
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
+        }
+    } else {
+        buildTypes {
+            debug {
+                minifyEnabled false
+            }
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def apkName = "皮皮虾-v${defaultConfig.versionName}-${defaultConfig.versionCode}-${getBuildTime()}.apk"
+            outputFileName = apkName
         }
     }
 
