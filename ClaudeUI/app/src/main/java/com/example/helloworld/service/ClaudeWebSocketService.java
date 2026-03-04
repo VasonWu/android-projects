@@ -194,7 +194,7 @@ public class ClaudeWebSocketService extends Service {
     public void sendInput(String text) {
         if (webSocketClient != null && webSocketClient.isConnected()) {
             setStatus(Status.SENDING);
-            appendOutput("\n> " + text + "\n");
+            appendOutput("\n🐢: " + text + "\n");
             webSocketClient.sendInput(text, currentSessionId);
             setStatus(Status.WAITING);
         } else {
