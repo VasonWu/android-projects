@@ -6,10 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
@@ -345,18 +341,6 @@ public class ClaudeWebSocketService extends Service {
         }
     }
 
-    private Bitmap createColoredDot(int color) {
-        int size = 48;
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint();
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
-        paint.setAntiAlias(true);
-        canvas.drawCircle(size / 2f, size / 2f, size / 2.5f, paint);
-        return bitmap;
-    }
-
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -386,13 +370,36 @@ public class ClaudeWebSocketService extends Service {
 
         int color = getStatusColor(status);
         String text = getStatusText(status);
-        Bitmap coloredDot = createColoredDot(color);
+
+        // 选择不同的小图标来表示状态
+        int iconRes = android.R.drawable.ic_dialog_info;
+        switch (status) {
+            case CONNECTED:
+            case IDLE:
+                iconRes = android.R.drawable.ic_dialog_info;
+                break;
+            case CONNECTING:
+            case WAITING:
+            case SENDING:
+                iconRes = android.R.drawable.ic_popup_sync;
+                break;
+            case LISTENING:
+            case RECEIVING:
+                iconRes = android.R.drawable.ic_btn_speak_now;
+                break;
+            case DISCONNECTED:
+                iconRes = android.R.drawable.ic_dialog_alert;
+                break;
+            case ERROR:
+                iconRes = android.R.drawable.ic_delete;
+                break;
+        }
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("皮皮虾")
                 .setContentText(text)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setLargeIcon(coloredDot)
+                .setSmallIcon(iconRes)
+                .setColor(color)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .build();
