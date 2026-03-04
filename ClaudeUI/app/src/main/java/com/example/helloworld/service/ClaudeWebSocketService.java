@@ -88,8 +88,8 @@ public class ClaudeWebSocketService extends Service {
             public void onOutputReceived(String data) {
                 Log.d(TAG, "Output received: " + data);
                 setStatus(Status.RECEIVING);
-                // 在回复前添加换行，确保从新行开始显示
-                appendOutput("\n" + data);
+                // 在回复前添加换行和前缀符号
+                appendOutput("\n🦐: " + data);
             }
 
             @Override

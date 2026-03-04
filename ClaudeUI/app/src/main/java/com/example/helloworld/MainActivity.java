@@ -14,10 +14,8 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.ViewFlipper;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -34,9 +32,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
 
-    private static final int VOICE_MODE = 0;
-    private static final int TEXT_MODE = 1;
-
     private ClaudeWebSocketService service;
     private boolean isServiceBound = false;
     private SpeechRecognizerManager speechRecognizerManager;
@@ -45,13 +40,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView statusText;
     private TextView outputText;
     private ScrollView outputScrollView;
-    private ViewFlipper inputFlipper;
-    private ImageView micButton;
-    private TextView micHintText;
-    private TextView tapToTypeText;
     private EditText textInput;
     private ImageButton sendButton;
-    private ImageButton voiceModeButton;
+    private ImageButton micButton;
     private ImageButton newSessionButton;
 
     private boolean isRecording = false;
@@ -116,14 +107,10 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         outputText = findViewById(R.id.outputText);
         outputScrollView = findViewById(R.id.outputScrollView);
-        inputFlipper = findViewById(R.id.inputFlipper);
 
-        micButton = findViewById(R.id.micButton);
-        micHintText = findViewById(R.id.micHintText);
-        tapToTypeText = findViewById(R.id.tapToTypeText);
         textInput = findViewById(R.id.textInput);
         sendButton = findViewById(R.id.sendButton);
-        voiceModeButton = findViewById(R.id.voiceModeButton);
+        micButton = findViewById(R.id.micButton);
         newSessionButton = findViewById(R.id.newSessionButton);
 
         // 初始化 Markwon
@@ -140,24 +127,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        tapToTypeText.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                switchToTextMode();
-            }
-        });
-
         sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 sendTextInput();
-            }
-        });
-
-        voiceModeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                switchToVoiceMode();
             }
         });
 
@@ -186,13 +159,12 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onPartialResults(String text) {
-                micHintText.setText(text);
+                // 可以在输入框显示临时结果
             }
 
             @Override
             public void onResults(String text) {
                 updateMicState(false);
-                micHintText.setText("点击说话");
                 if (!text.isEmpty() && isServiceBound) {
                     service.sendInput(text);
                 } else if (isServiceBound) {
@@ -203,7 +175,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(int errorCode, String errorMessage) {
                 updateMicState(false);
-                micHintText.setText("点击说话");
                 setStatusText("语音识别错误: " + errorMessage);
                 if (isServiceBound) {
                     service.setIdleStatus();
@@ -345,24 +316,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void switchToTextMode() {
-        inputFlipper.setDisplayedChild(TEXT_MODE);
-        textInput.requestFocus();
-        showKeyboard();
-    }
-
-    private void switchToVoiceMode() {
-        hideKeyboard();
-        textInput.setText("");
-        inputFlipper.setDisplayedChild(VOICE_MODE);
-    }
-
     private void sendTextInput() {
         String text = textInput.getText().toString().trim();
         if (!text.isEmpty() && isServiceBound) {
             service.sendInput(text);
         }
-        switchToVoiceMode();
+        textInput.setText("");
+        hideKeyboard();
     }
 
     private void showKeyboard() {
