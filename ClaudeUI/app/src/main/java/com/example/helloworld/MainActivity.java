@@ -6,10 +6,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
-import android.text.Spanned;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -18,6 +21,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -31,6 +37,7 @@ import io.noties.markwon.Markwon;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
+    private static final int MANAGE_STORAGE_REQUEST_CODE = 101;
 
     private ClaudeWebSocketService service;
     private boolean isServiceBound = false;
@@ -69,10 +76,17 @@ public class MainActivity extends AppCompatActivity {
 
         initViews();
         initSpeechRecognizer();
-        requestPermissions();
+        requestAllPermissions();
         bindToService();
 
         handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Check permissions again when app resumes
+        checkAndRequestManageStorage();
     }
 
     @Override
@@ -183,35 +197,115 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void requestPermissions() {
-        String[] permissions;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions = new String[]{
-                    Manifest.permission.RECORD_AUDIO,
-                    Manifest.permission.POST_NOTIFICATIONS
-            };
-        } else {
-            permissions = new String[]{
-                    Manifest.permission.RECORD_AUDIO
-            };
-        }
+    private void requestAllPermissions() {
+        Log.d(TAG, "Requesting all permissions...");
 
-        boolean needRequest = false;
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                needRequest = true;
-                break;
+        // First check MANAGE_EXTERNAL_STORAGE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                Log.d(TAG, "MANAGE_EXTERNAL_STORAGE not granted, requesting...");
+                checkAndRequestManageStorage();
+            } else {
+                Log.d(TAG, "MANAGE_EXTERNAL_STORAGE already granted");
             }
         }
 
-        if (needRequest) {
-            ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+        // Request other permissions
+        requestDangerousPermissions();
+    }
+
+    private void checkAndRequestManageStorage() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                Log.d(TAG, "Opening MANAGE_EXTERNAL_STORAGE settings...");
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivityForResult(intent, MANAGE_STORAGE_REQUEST_CODE);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to open manage storage settings", e);
+                    // Fallback to general settings
+                    try {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                        startActivityForResult(intent, MANAGE_STORAGE_REQUEST_CODE);
+                    } catch (Exception e2) {
+                        Log.e(TAG, "Failed to open general settings too", e2);
+                    }
+                }
+            }
+        }
+    }
+
+    private void requestDangerousPermissions() {
+        List<String> permissions = new ArrayList<>();
+
+        // Always request RECORD_AUDIO
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.RECORD_AUDIO);
+        }
+
+        // POST_NOTIFICATIONS for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        // READ_EXTERNAL_STORAGE for Android < 13
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+        }
+
+        // READ_MEDIA_AUDIO for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_AUDIO);
+            }
+        }
+
+        if (!permissions.isEmpty()) {
+            Log.d(TAG, "Requesting dangerous permissions: " + permissions);
+            ActivityCompat.requestPermissions(this,
+                    permissions.toArray(new String[0]),
+                    PERMISSION_REQUEST_CODE);
+        } else {
+            Log.d(TAG, "All dangerous permissions already granted");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == MANAGE_STORAGE_REQUEST_CODE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (Environment.isExternalStorageManager()) {
+                    Log.d(TAG, "MANAGE_EXTERNAL_STORAGE granted!");
+                } else {
+                    Log.d(TAG, "MANAGE_EXTERNAL_STORAGE not granted");
+                }
+            }
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int i = 0; i < permissions.length; i++) {
+                Log.d(TAG, "Permission: " + permissions[i] + " = " +
+                        (grantResults[i] == PackageManager.PERMISSION_GRANTED ? "GRANTED" : "DENIED"));
+            }
+        }
     }
 
     private void bindToService() {
@@ -296,7 +390,7 @@ public class MainActivity extends AppCompatActivity {
     private void toggleRecording() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions();
+            requestAllPermissions();
             return;
         }
 
