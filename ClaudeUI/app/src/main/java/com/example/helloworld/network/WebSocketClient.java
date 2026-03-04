@@ -10,6 +10,9 @@ import com.example.helloworld.network.protocol.ExitMessage;
 import com.example.helloworld.network.protocol.InputMessage;
 import com.example.helloworld.network.protocol.MessageType;
 import com.example.helloworld.network.protocol.OutputMessage;
+import com.example.helloworld.network.protocol.SessionCreateMessage;
+import com.example.helloworld.network.protocol.SessionListMessage;
+import com.example.helloworld.network.protocol.SessionSelectMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -29,11 +32,18 @@ public class WebSocketClient {
         void onOutputReceived(String data);
         void onErrorReceived(String data);
         void onExitReceived(int code);
+        void onSessionCreated(String sessionId);
+        void onSessionSelected(String sessionId);
+        void onSessionList(String sessionsJson);
+        void onProcessStarted(String sessionId);
+        void onProcessStopped(String sessionId, String reason);
+        void onProcessCrashed(String sessionId);
     }
 
     private final Gson gson = new Gson();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final String serverUri;
+    private String clientId;
     private Listener listener;
     private WebSocketClientImpl client;
     private boolean isConnecting = false;
@@ -44,6 +54,10 @@ public class WebSocketClient {
 
     public WebSocketClient(String serverUri) {
         this.serverUri = serverUri;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 
     public void setListener(Listener listener) {
@@ -81,13 +95,48 @@ public class WebSocketClient {
         return client != null && client.isOpen();
     }
 
-    public void sendInput(String text) {
-        InputMessage message = new InputMessage(text);
+    public void sendInput(String text, String sessionId) {
+        if (clientId == null) {
+            Log.e(TAG, "clientId not set");
+            return;
+        }
+        InputMessage message = new InputMessage(text, clientId, sessionId);
         send(gson.toJson(message));
     }
 
     public void sendCancel() {
-        CancelMessage message = new CancelMessage();
+        if (clientId == null) {
+            Log.e(TAG, "clientId not set");
+            return;
+        }
+        CancelMessage message = new CancelMessage(clientId);
+        send(gson.toJson(message));
+    }
+
+    public void sendSessionCreate() {
+        if (clientId == null) {
+            Log.e(TAG, "clientId not set");
+            return;
+        }
+        SessionCreateMessage message = new SessionCreateMessage(clientId);
+        send(gson.toJson(message));
+    }
+
+    public void sendSessionSelect(String sessionId) {
+        if (clientId == null) {
+            Log.e(TAG, "clientId not set");
+            return;
+        }
+        SessionSelectMessage message = new SessionSelectMessage(clientId, sessionId);
+        send(gson.toJson(message));
+    }
+
+    public void sendSessionList() {
+        if (clientId == null) {
+            Log.e(TAG, "clientId not set");
+            return;
+        }
+        SessionListMessage message = new SessionListMessage(clientId);
         send(gson.toJson(message));
     }
 
@@ -167,6 +216,72 @@ public class WebSocketClient {
         });
     }
 
+    private void notifyOnSessionCreated(final String sessionId) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onSessionCreated(sessionId);
+                }
+            }
+        });
+    }
+
+    private void notifyOnSessionSelected(final String sessionId) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onSessionSelected(sessionId);
+                }
+            }
+        });
+    }
+
+    private void notifyOnSessionList(final String sessionsJson) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onSessionList(sessionsJson);
+                }
+            }
+        });
+    }
+
+    private void notifyOnProcessStarted(final String sessionId) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onProcessStarted(sessionId);
+                }
+            }
+        });
+    }
+
+    private void notifyOnProcessStopped(final String sessionId, final String reason) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onProcessStopped(sessionId, reason);
+                }
+            }
+        });
+    }
+
+    private void notifyOnProcessCrashed(final String sessionId) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onProcessCrashed(sessionId);
+                }
+            }
+        });
+    }
+
     private class WebSocketClientImpl extends org.java_websocket.client.WebSocketClient {
         public WebSocketClientImpl(URI serverUri) {
             super(serverUri);
@@ -229,6 +344,28 @@ public class WebSocketClient {
                 } else if (MessageType.TYPE_EXIT.equals(type)) {
                     int code = jsonObj.has("code") ? jsonObj.get("code").getAsInt() : 0;
                     notifyOnExitReceived(code);
+                } else if (MessageType.TYPE_SESSION_CREATED.equals(type)) {
+                    if (jsonObj.has("session_id")) {
+                        String sessionId = jsonObj.get("session_id").getAsString();
+                        notifyOnSessionCreated(sessionId);
+                    }
+                } else if (MessageType.TYPE_SESSION_SELECTED.equals(type)) {
+                    if (jsonObj.has("session_id")) {
+                        String sessionId = jsonObj.get("session_id").getAsString();
+                        notifyOnSessionSelected(sessionId);
+                    }
+                } else if (MessageType.TYPE_SESSION_LIST.equals(type)) {
+                    notifyOnSessionList(json);
+                } else if (MessageType.TYPE_PROCESS_STARTED.equals(type)) {
+                    String sessionId = jsonObj.has("session_id") ? jsonObj.get("session_id").getAsString() : null;
+                    notifyOnProcessStarted(sessionId);
+                } else if (MessageType.TYPE_PROCESS_STOPPED.equals(type)) {
+                    String sessionId = jsonObj.has("session_id") ? jsonObj.get("session_id").getAsString() : null;
+                    String reason = jsonObj.has("reason") ? jsonObj.get("reason").getAsString() : null;
+                    notifyOnProcessStopped(sessionId, reason);
+                } else if (MessageType.TYPE_PROCESS_CRASHED.equals(type)) {
+                    String sessionId = jsonObj.has("session_id") ? jsonObj.get("session_id").getAsString() : null;
+                    notifyOnProcessCrashed(sessionId);
                 } else {
                     Log.w(TAG, "Unknown message type: " + type);
                 }

@@ -48,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText textInput;
     private ImageButton sendButton;
     private ImageButton voiceModeButton;
+    private ImageButton newSessionButton;
 
     private boolean isRecording = false;
 
@@ -119,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
         textInput = findViewById(R.id.textInput);
         sendButton = findViewById(R.id.sendButton);
         voiceModeButton = findViewById(R.id.voiceModeButton);
+        newSessionButton = findViewById(R.id.newSessionButton);
 
         setupClickListeners();
     }
@@ -149,6 +151,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 switchToVoiceMode();
+            }
+        });
+
+        newSessionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (isServiceBound) {
+                    service.createSession();
+                }
             }
         });
     }

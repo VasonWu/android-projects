@@ -19,6 +19,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.example.helloworld.MainActivity;
 import com.example.helloworld.R;
 import com.example.helloworld.network.WebSocketClient;
+import com.example.helloworld.util.ClientIdManager;
 
 public class ClaudeWebSocketService extends Service {
     private static final String TAG = "ClaudeWebSocketService";
@@ -39,9 +40,11 @@ public class ClaudeWebSocketService extends Service {
 
     private final IBinder binder = new LocalBinder();
     private WebSocketClient webSocketClient;
+    private ClientIdManager clientIdManager;
     private final MutableLiveData<Status> statusLiveData = new MutableLiveData<>(Status.IDLE);
     private final MutableLiveData<String> outputLiveData = new MutableLiveData<>();
     private final StringBuilder outputBuffer = new StringBuilder();
+    private String currentSessionId;
 
     public class LocalBinder extends Binder {
         public ClaudeWebSocketService getService() {
@@ -53,6 +56,7 @@ public class ClaudeWebSocketService extends Service {
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "Service created");
+        clientIdManager = new ClientIdManager(this);
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification("Claude 连接中..."));
         initWebSocket();
@@ -60,6 +64,7 @@ public class ClaudeWebSocketService extends Service {
 
     private void initWebSocket() {
         webSocketClient = new WebSocketClient();
+        webSocketClient.setClientId(clientIdManager.getClientId());
         webSocketClient.setListener(new WebSocketClient.Listener() {
             @Override
             public void onConnected() {
@@ -86,14 +91,45 @@ public class ClaudeWebSocketService extends Service {
             public void onErrorReceived(String data) {
                 Log.e(TAG, "Error received: " + data);
                 setStatus(Status.ERROR);
-                appendOutput("\n[错误] " + data + "\n");
             }
 
             @Override
             public void onExitReceived(int code) {
                 Log.d(TAG, "Exit received, code: " + code);
                 setStatus(Status.IDLE);
-                appendOutput("\n[会话结束，退出码: " + code + "]\n");
+            }
+
+            @Override
+            public void onSessionCreated(String sessionId) {
+                Log.d(TAG, "Session created: " + sessionId);
+                currentSessionId = sessionId;
+                setStatus(Status.CONNECTED);
+            }
+
+            @Override
+            public void onSessionSelected(String sessionId) {
+                Log.d(TAG, "Session selected: " + sessionId);
+                currentSessionId = sessionId;
+            }
+
+            @Override
+            public void onSessionList(String sessionsJson) {
+                Log.d(TAG, "Session list received");
+            }
+
+            @Override
+            public void onProcessStarted(String sessionId) {
+                Log.d(TAG, "Process started: " + sessionId);
+            }
+
+            @Override
+            public void onProcessStopped(String sessionId, String reason) {
+                Log.d(TAG, "Process stopped: " + sessionId + ", reason: " + reason);
+            }
+
+            @Override
+            public void onProcessCrashed(String sessionId) {
+                Log.d(TAG, "Process crashed: " + sessionId);
             }
         });
         setStatus(Status.CONNECTING);
@@ -142,11 +178,15 @@ public class ClaudeWebSocketService extends Service {
         return statusLiveData.getValue();
     }
 
+    public String getCurrentSessionId() {
+        return currentSessionId;
+    }
+
     public void sendInput(String text) {
         if (webSocketClient != null && webSocketClient.isConnected()) {
             setStatus(Status.SENDING);
             appendOutput("\n> " + text + "\n");
-            webSocketClient.sendInput(text);
+            webSocketClient.sendInput(text, currentSessionId);
             setStatus(Status.WAITING);
         } else {
             appendOutput("\n[未连接到服务器]\n");
@@ -157,6 +197,26 @@ public class ClaudeWebSocketService extends Service {
         if (webSocketClient != null) {
             webSocketClient.sendCancel();
             setStatus(Status.IDLE);
+        }
+    }
+
+    public void createSession() {
+        if (webSocketClient != null && webSocketClient.isConnected()) {
+            webSocketClient.sendSessionCreate();
+        } else {
+            appendOutput("\n[未连接到服务器]\n");
+        }
+    }
+
+    public void selectSession(String sessionId) {
+        if (webSocketClient != null && webSocketClient.isConnected()) {
+            webSocketClient.sendSessionSelect(sessionId);
+        }
+    }
+
+    public void listSessions() {
+        if (webSocketClient != null && webSocketClient.isConnected()) {
+            webSocketClient.sendSessionList();
         }
     }
 
