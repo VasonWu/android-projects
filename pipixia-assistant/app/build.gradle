@@ -21,8 +21,8 @@ android {
         applicationId "com.pipixia"
         minSdk 23
         targetSdk 33
-        versionCode 18
-        versionName "2.7"
+        versionCode 19
+        versionName "2.8"
     }
 
     // Try to use fixed keystore if it exists, otherwise use default
