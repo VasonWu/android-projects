@@ -34,6 +34,8 @@ public class ClaudeWebSocketService extends Service {
     private static final String TAG = "ClaudeWebSocketService";
     private static final String CHANNEL_ID = "ClaudeWebSocketChannel";
     private static final int NOTIFICATION_ID = 1;
+    private static final String MESSAGE_CHANNEL_ID = "PipixiaMessageChannel";
+    private static final int MESSAGE_NOTIFICATION_ID = 2;
     private static final int MAX_HISTORY_LINES = 50;
 
     // Status colors (ARGB)
@@ -68,6 +70,10 @@ public class ClaudeWebSocketService extends Service {
     private boolean isAudioPlayerBound = false;
     private boolean audioPlayerNeedsUpdate = false;
 
+    // MainActivity visibility tracking
+    private boolean isMainActivityVisible = false;
+    private String lastReceivedMessage = "";
+
     private final ServiceConnection audioPlayerConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -101,6 +107,7 @@ public class ClaudeWebSocketService extends Service {
         Log.d(TAG, "Service created");
         clientIdManager = new ClientIdManager(this);
         createNotificationChannel();
+        createMessageNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
         initWebSocket();
         bindToAudioPlayer();
@@ -139,6 +146,13 @@ public class ClaudeWebSocketService extends Service {
                 Log.d(TAG, "Output received: " + data);
                 setStatus(Status.RECEIVING);
                 appendOutput("\n🦐: " + data);
+                lastReceivedMessage = data;
+                // 如果MainActivity不可见，显示通知
+                if (!isMainActivityVisible) {
+                    showMessageNotification(data);
+                } else {
+                    cancelMessageNotification();
+                }
             }
 
             @Override
@@ -471,6 +485,70 @@ public class ClaudeWebSocketService extends Service {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) {
             manager.notify(NOTIFICATION_ID, createNotification());
+        }
+    }
+
+    public void setMainActivityVisible(boolean visible) {
+        Log.d(TAG, "MainActivity visible: " + visible);
+        isMainActivityVisible = visible;
+        if (visible) {
+            cancelMessageNotification();
+        }
+    }
+
+    private void createMessageNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    MESSAGE_CHANNEL_ID,
+                    "皮皮虾消息",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("收到新消息时的通知");
+            channel.enableVibration(true);
+            channel.enableLights(true);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void showMessageNotification(String message) {
+        Log.d(TAG, "Showing message notification");
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                notificationIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        // 截断过长的消息
+        String displayMessage = message;
+        if (displayMessage.length() > 100) {
+            displayMessage = displayMessage.substring(0, 100) + "...";
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, MESSAGE_CHANNEL_ID)
+                .setContentTitle("皮皮虾助手")
+                .setContentText(displayMessage)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setDefaults(NotificationCompat.DEFAULT_ALL);
+
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.notify(MESSAGE_NOTIFICATION_ID, builder.build());
+        }
+    }
+
+    public void cancelMessageNotification() {
+        Log.d(TAG, "Canceling message notification");
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.cancel(MESSAGE_NOTIFICATION_ID);
         }
     }
 }

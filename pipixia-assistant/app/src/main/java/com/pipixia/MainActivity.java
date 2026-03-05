@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton newSessionButton;
 
     private boolean isRecording = false;
+    private boolean isActivityVisible = false;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -60,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
             ClaudeWebSocketService.LocalBinder localBinder = (ClaudeWebSocketService.LocalBinder) binder;
             service = localBinder.getService();
             isServiceBound = true;
+            service.setMainActivityVisible(isActivityVisible);
             observeService();
         }
 
@@ -80,6 +82,24 @@ public class MainActivity extends AppCompatActivity {
         bindToService();
 
         handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        isActivityVisible = true;
+        if (isServiceBound && service != null) {
+            service.setMainActivityVisible(true);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        isActivityVisible = false;
+        if (isServiceBound && service != null) {
+            service.setMainActivityVisible(false);
+        }
     }
 
     @Override
@@ -338,6 +358,10 @@ public class MainActivity extends AppCompatActivity {
                 // 使用 Markwon 渲染 Markdown 内容
                 markwon.setMarkdown(outputText, output);
                 scrollToBottom();
+                // 如果Activity可见，取消任何未读通知
+                if (isActivityVisible && isServiceBound && service != null) {
+                    service.cancelMessageNotification();
+                }
             }
         });
     }
