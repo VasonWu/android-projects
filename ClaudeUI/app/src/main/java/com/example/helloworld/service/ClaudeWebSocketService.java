@@ -5,7 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
@@ -18,9 +21,11 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.helloworld.MainActivity;
 import com.example.helloworld.R;
+import com.example.helloworld.audio.AudioPlayerManager;
 import com.example.helloworld.network.WebSocketClient;
 import com.example.helloworld.util.ClientIdManager;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,6 +63,32 @@ public class ClaudeWebSocketService extends Service {
     private final List<String> outputLines = new LinkedList<>();
     private String currentSessionId;
 
+    // AudioPlayerManager binding
+    private AudioPlayerManager audioPlayerManager;
+    private boolean isAudioPlayerBound = false;
+    private boolean audioPlayerNeedsUpdate = false;
+
+    private final ServiceConnection audioPlayerConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            AudioPlayerManager.LocalBinder binder = (AudioPlayerManager.LocalBinder) service;
+            audioPlayerManager = binder.getService();
+            isAudioPlayerBound = true;
+            Log.d(TAG, "AudioPlayerManager bound");
+            if (audioPlayerNeedsUpdate) {
+                updateNotification();
+                audioPlayerNeedsUpdate = false;
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            audioPlayerManager = null;
+            isAudioPlayerBound = false;
+            Log.d(TAG, "AudioPlayerManager unbound");
+        }
+    };
+
     public class LocalBinder extends Binder {
         public ClaudeWebSocketService getService() {
             return ClaudeWebSocketService.this;
@@ -72,6 +103,17 @@ public class ClaudeWebSocketService extends Service {
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
         initWebSocket();
+        bindToAudioPlayer();
+    }
+
+    private void bindToAudioPlayer() {
+        Intent intent = new Intent(this, AudioPlayerManager.class);
+        bindService(intent, audioPlayerConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    public void notifyAudioPlayerStateChanged() {
+        Log.d(TAG, "Audio player state changed, updating notification");
+        updateNotification();
     }
 
     private void initWebSocket() {
@@ -96,7 +138,6 @@ public class ClaudeWebSocketService extends Service {
             public void onOutputReceived(String data) {
                 Log.d(TAG, "Output received: " + data);
                 setStatus(Status.RECEIVING);
-                // 在回复前添加换行和前缀符号
                 appendOutput("\n🦐: " + data);
             }
 
@@ -172,6 +213,10 @@ public class ClaudeWebSocketService extends Service {
         Log.d(TAG, "Service destroyed");
         if (webSocketClient != null) {
             webSocketClient.disconnect();
+        }
+        if (isAudioPlayerBound) {
+            unbindService(audioPlayerConnection);
+            isAudioPlayerBound = false;
         }
     }
 
@@ -258,18 +303,15 @@ public class ClaudeWebSocketService extends Service {
     }
 
     private void appendOutput(String text) {
-        // 将文本按行分割并添加
         String[] lines = text.split("(?<=\\n)");
         for (String line : lines) {
             outputLines.add(line);
         }
 
-        // 限制最多 MAX_HISTORY_LINES 行
         while (outputLines.size() > MAX_HISTORY_LINES) {
             outputLines.remove(0);
         }
 
-        // 更新 LiveData
         StringBuilder sb = new StringBuilder();
         for (String line : outputLines) {
             sb.append(line);
@@ -298,28 +340,47 @@ public class ClaudeWebSocketService extends Service {
         }
     }
 
-    private String getStatusText(Status status) {
+    private int getStatusIcon(Status status) {
         switch (status) {
-            case IDLE:
-                return "准备就绪";
-            case CONNECTING:
-                return "正在连接...";
             case CONNECTED:
-                return "已连接";
-            case LISTENING:
-                return "正在聆听...";
-            case SENDING:
-                return "正在发送...";
+            case IDLE:
+                return android.R.drawable.ic_dialog_info;
+            case CONNECTING:
             case WAITING:
-                return "正在等待回复...";
+            case SENDING:
+                return android.R.drawable.ic_popup_sync;
+            case LISTENING:
             case RECEIVING:
-                return "正在接收...";
+                return android.R.drawable.ic_btn_speak_now;
             case DISCONNECTED:
-                return "已断开连接";
+                return android.R.drawable.ic_dialog_alert;
             case ERROR:
-                return "出错了";
+                return android.R.drawable.ic_delete;
             default:
-                return "未知状态";
+                return android.R.drawable.ic_dialog_info;
+        }
+    }
+
+    private String getAudioPlayerNotificationText() {
+        if (!isAudioPlayerBound || audioPlayerManager == null) {
+            return "";
+        }
+        List<String> playlist = audioPlayerManager.getPlaylist();
+        if (playlist.isEmpty()) {
+            return "";
+        }
+        int currentIndex = audioPlayerManager.getCurrentIndex();
+        String currentFile = "";
+        if (currentIndex >= 0 && currentIndex < playlist.size()) {
+            String path = playlist.get(currentIndex);
+            File file = new File(path);
+            currentFile = file.getName();
+        }
+        int remaining = playlist.size() - (currentIndex >= 0 ? 1 : 0);
+        if (remaining > 0) {
+            return String.format("正在播放: %s (剩余 %d 首)", currentFile, remaining);
+        } else {
+            return String.format("正在播放: %s", currentFile);
         }
     }
 
@@ -351,40 +412,59 @@ public class ClaudeWebSocketService extends Service {
         if (status == null) status = Status.IDLE;
 
         int color = getStatusColor(status);
-        String text = getStatusText(status);
+        int iconRes = getStatusIcon(status);
+        String contentText = getAudioPlayerNotificationText();
 
-        // 选择不同的小图标来表示状态
-        int iconRes = android.R.drawable.ic_dialog_info;
-        switch (status) {
-            case CONNECTED:
-            case IDLE:
-                iconRes = android.R.drawable.ic_dialog_info;
-                break;
-            case CONNECTING:
-            case WAITING:
-            case SENDING:
-                iconRes = android.R.drawable.ic_popup_sync;
-                break;
-            case LISTENING:
-            case RECEIVING:
-                iconRes = android.R.drawable.ic_btn_speak_now;
-                break;
-            case DISCONNECTED:
-                iconRes = android.R.drawable.ic_dialog_alert;
-                break;
-            case ERROR:
-                iconRes = android.R.drawable.ic_delete;
-                break;
-        }
-
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("皮皮虾")
-                .setContentText(text)
                 .setSmallIcon(iconRes)
                 .setColor(color)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
-                .build();
+                .setPriority(NotificationCompat.PRIORITY_LOW);
+
+        if (!contentText.isEmpty()) {
+            builder.setContentText(contentText);
+        }
+
+        if (isAudioPlayerBound && audioPlayerManager != null) {
+            Intent playIntent = new Intent(this, AudioPlayerManager.class);
+            playIntent.setAction(AudioPlayerManager.ACTION_PLAY);
+            PendingIntent playPendingIntent = PendingIntent.getService(
+                    this, 0, playIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            Intent pauseIntent = new Intent(this, AudioPlayerManager.class);
+            pauseIntent.setAction(AudioPlayerManager.ACTION_PAUSE);
+            PendingIntent pausePendingIntent = PendingIntent.getService(
+                    this, 1, pauseIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            Intent nextIntent = new Intent(this, AudioPlayerManager.class);
+            nextIntent.setAction(AudioPlayerManager.ACTION_NEXT);
+            PendingIntent nextPendingIntent = PendingIntent.getService(
+                    this, 2, nextIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            Intent clearIntent = new Intent(this, AudioPlayerManager.class);
+            clearIntent.setAction(AudioPlayerManager.ACTION_CLEAR);
+            PendingIntent clearPendingIntent = PendingIntent.getService(
+                    this, 3, clearIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            boolean isPlaying = audioPlayerManager.isPlaying();
+            List<String> playlist = audioPlayerManager.getPlaylist();
+
+            if (!playlist.isEmpty()) {
+                if (isPlaying) {
+                    builder.addAction(android.R.drawable.ic_media_pause, "暂停", pausePendingIntent);
+                } else {
+                    builder.addAction(android.R.drawable.ic_media_play, "播放", playPendingIntent);
+                }
+                builder.addAction(android.R.drawable.ic_media_next, "下一首", nextPendingIntent);
+                builder.addAction(android.R.drawable.ic_menu_delete, "清空", clearPendingIntent);
+            }
+        } else {
+            audioPlayerNeedsUpdate = true;
+        }
+
+        return builder.build();
     }
 
     private void updateNotification() {

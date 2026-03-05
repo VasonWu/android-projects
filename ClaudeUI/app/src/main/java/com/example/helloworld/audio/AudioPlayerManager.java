@@ -1,14 +1,12 @@
 package com.example.helloworld.audio;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
@@ -16,11 +14,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
-
-import com.example.helloworld.MainActivity;
-import com.example.helloworld.R;
+import com.example.helloworld.service.ClaudeWebSocketService;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,8 +23,6 @@ import java.util.List;
 
 public class AudioPlayerManager extends Service {
     private static final String TAG = "AudioPlayerManager";
-    private static final String CHANNEL_ID = "AudioPlayerChannel";
-    private static final int NOTIFICATION_ID = 1001;
 
     // Intent Actions
     public static final String ACTION_PLAY = "com.example.helloworld.PLAY";
@@ -50,6 +42,27 @@ public class AudioPlayerManager extends Service {
     private boolean isPrepared = false;
 
     private final IBinder binder = new LocalBinder();
+
+    // ClaudeWebSocketService binding
+    private ClaudeWebSocketService webSocketService;
+    private boolean isWebSocketServiceBound = false;
+
+    private final ServiceConnection webSocketConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            ClaudeWebSocketService.LocalBinder binder = (ClaudeWebSocketService.LocalBinder) service;
+            webSocketService = binder.getService();
+            isWebSocketServiceBound = true;
+            Log.d(TAG, "ClaudeWebSocketService bound");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            webSocketService = null;
+            isWebSocketServiceBound = false;
+            Log.d(TAG, "ClaudeWebSocketService unbound");
+        }
+    };
 
     public class LocalBinder extends Binder {
         public AudioPlayerManager getService() {
@@ -71,7 +84,6 @@ public class AudioPlayerManager extends Service {
         super.onCreate();
         Log.d(TAG, "AudioPlayerService created");
 
-        // Register receiver
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_PLAY);
         filter.addAction(ACTION_PAUSE);
@@ -81,8 +93,19 @@ public class AudioPlayerManager extends Service {
         filter.addAction(ACTION_SET_PLAYLIST);
         registerReceiver(commandReceiver, filter);
 
-        createNotificationChannel();
         initMediaPlayer();
+        bindToWebSocketService();
+    }
+
+    private void bindToWebSocketService() {
+        Intent intent = new Intent(this, ClaudeWebSocketService.class);
+        bindService(intent, webSocketConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void notifyNotificationUpdate() {
+        if (isWebSocketServiceBound && webSocketService != null) {
+            webSocketService.notifyAudioPlayerStateChanged();
+        }
     }
 
     private void initMediaPlayer() {
@@ -110,43 +133,29 @@ public class AudioPlayerManager extends Service {
             public void onPrepared(MediaPlayer mp) {
                 isPrepared = true;
                 mp.start();
-                updateNotification();
+                notifyNotificationUpdate();
             }
         });
     }
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "皮皮虾音频播放器",
-                    NotificationManager.IMPORTANCE_LOW
-            );
-            channel.setDescription("音频播放控制");
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-            }
-        }
-    }
-
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return binder;
     }
 
     @Override
+    public boolean onUnbind(Intent intent) {
+        return true;
+    }
+
+    @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: " + (intent != null ? intent.getAction() : null));
 
-        // Handle intent actions immediately
         if (intent != null && intent.getAction() != null) {
             handleIntentAction(intent, intent.getAction());
         }
 
-        // Show notification and make it foreground
-        startForeground(NOTIFICATION_ID, buildNotification());
         return START_STICKY;
     }
 
@@ -158,7 +167,6 @@ public class AudioPlayerManager extends Service {
                 if (path != null) {
                     addToPlaylist(path);
                 } else {
-                    // Try to get from getData()
                     Uri data = intent.getData();
                     if (data != null) {
                         addToPlaylist(data.getPath());
@@ -190,7 +198,7 @@ public class AudioPlayerManager extends Service {
         Log.d(TAG, "handlePlay");
         if (mediaPlayer != null && isPrepared && !mediaPlayer.isPlaying()) {
             mediaPlayer.start();
-            updateNotification();
+            notifyNotificationUpdate();
         } else if (playlist.size() > 0 && currentIndex < 0) {
             play(0);
         }
@@ -200,18 +208,16 @@ public class AudioPlayerManager extends Service {
         Log.d(TAG, "handlePause");
         if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
-            updateNotification();
+            notifyNotificationUpdate();
         }
     }
 
     private void handleNext() {
         Log.d(TAG, "handleNext, currentIndex=" + currentIndex + ", size=" + playlist.size());
         if (playlist.size() > 0 && currentIndex >= 0) {
-            // Remove the current (completed) track
             if (currentIndex < playlist.size()) {
                 playlist.remove(currentIndex);
             }
-            // Play next if available
             if (playlist.size() > 0) {
                 if (currentIndex >= playlist.size()) {
                     currentIndex = 0;
@@ -219,7 +225,6 @@ public class AudioPlayerManager extends Service {
                 play(currentIndex);
             } else {
                 currentIndex = -1;
-                stopForeground(true);
                 stopSelf();
             }
         }
@@ -234,8 +239,7 @@ public class AudioPlayerManager extends Service {
         }
         playlist.clear();
         currentIndex = -1;
-        updateNotification();
-        stopForeground(true);
+        notifyNotificationUpdate();
         stopSelf();
     }
 
@@ -244,8 +248,7 @@ public class AudioPlayerManager extends Service {
         File file = new File(filePath);
         if (file.exists()) {
             playlist.add(filePath);
-            updateNotification();
-            // If nothing is playing, start playing
+            notifyNotificationUpdate();
             if (currentIndex < 0) {
                 play(playlist.size() - 1);
             }
@@ -264,7 +267,7 @@ public class AudioPlayerManager extends Service {
             }
         }
         currentIndex = -1;
-        updateNotification();
+        notifyNotificationUpdate();
         if (playlist.size() > 0) {
             play(0);
         }
@@ -289,82 +292,10 @@ public class AudioPlayerManager extends Service {
 
             mediaPlayer.setDataSource(this, Uri.fromFile(new File(filePath)));
             mediaPlayer.prepareAsync();
-            updateNotification();
+            notifyNotificationUpdate();
         } catch (IOException e) {
             Log.e(TAG, "Failed to play: " + filePath, e);
             handleNext();
-        }
-    }
-
-    private Notification buildNotification() {
-        // Create intents for actions
-        Intent playIntent = new Intent(this, AudioPlayerManager.class);
-        playIntent.setAction(ACTION_PLAY);
-        PendingIntent playPendingIntent = PendingIntent.getService(
-                this, 0, playIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Intent pauseIntent = new Intent(this, AudioPlayerManager.class);
-        pauseIntent.setAction(ACTION_PAUSE);
-        PendingIntent pausePendingIntent = PendingIntent.getService(
-                this, 1, pauseIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Intent nextIntent = new Intent(this, AudioPlayerManager.class);
-        nextIntent.setAction(ACTION_NEXT);
-        PendingIntent nextPendingIntent = PendingIntent.getService(
-                this, 2, nextIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Intent clearIntent = new Intent(this, AudioPlayerManager.class);
-        clearIntent.setAction(ACTION_CLEAR);
-        PendingIntent clearPendingIntent = PendingIntent.getService(
-                this, 3, clearIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // Main content intent
-        Intent contentIntent = new Intent(this, MainActivity.class);
-        PendingIntent contentPendingIntent = PendingIntent.getActivity(
-                this, 0, contentIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        // Build notification
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle("皮皮虾播放器")
-                .setContentText(getNotificationText())
-                .setContentIntent(contentPendingIntent)
-                .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW);
-
-        // Add action buttons
-        boolean isPlaying = mediaPlayer != null && mediaPlayer.isPlaying();
-
-        if (isPlaying) {
-            builder.addAction(android.R.drawable.ic_media_pause, "暂停", pausePendingIntent);
-        } else {
-            builder.addAction(android.R.drawable.ic_media_play, "播放", playPendingIntent);
-        }
-
-        builder.addAction(android.R.drawable.ic_media_next, "下一首", nextPendingIntent);
-        builder.addAction(android.R.drawable.ic_menu_delete, "清空", clearPendingIntent);
-
-        return builder.build();
-    }
-
-    private String getNotificationText() {
-        if (playlist.isEmpty()) {
-            return "播放列表为空";
-        }
-        String currentFile = "";
-        if (currentIndex >= 0 && currentIndex < playlist.size()) {
-            String path = playlist.get(currentIndex);
-            File file = new File(path);
-            currentFile = file.getName();
-        }
-        return String.format("正在播放: %s (剩余 %d 首)",
-                currentFile, playlist.size() - (currentIndex >= 0 ? 1 : 0));
-    }
-
-    private void updateNotification() {
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager != null) {
-            manager.notify(NOTIFICATION_ID, buildNotification());
         }
     }
 
@@ -375,13 +306,17 @@ public class AudioPlayerManager extends Service {
 
         unregisterReceiver(commandReceiver);
 
+        if (isWebSocketServiceBound) {
+            unbindService(webSocketConnection);
+            isWebSocketServiceBound = false;
+        }
+
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
         }
     }
 
-    // Public API for bound clients
     public boolean isPlaying() {
         return mediaPlayer != null && mediaPlayer.isPlaying();
     }
