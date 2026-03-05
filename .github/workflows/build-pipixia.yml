@@ -1,10 +1,10 @@
-name: Build ClaudeUI
+name: Build pipixia-assistant
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'ClaudeUI/**'
+      - 'pipixia-assistant/**'
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ClaudeUI
+        working-directory: ./pipixia-assistant
 
     steps:
       - name: Checkout code
@@ -33,5 +33,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: claudeui-app-debug
-          path: ClaudeUI/app/build/outputs/apk/debug/*.apk
+          name: pipixia-app-debug
+          path: pipixia-assistant/app/build/outputs/apk/debug/*.apk
