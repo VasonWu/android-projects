@@ -63,7 +63,6 @@ public class ClaudeWebSocketService extends Service {
     private final MutableLiveData<Status> statusLiveData = new MutableLiveData<>(Status.IDLE);
     private final MutableLiveData<String> outputLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> statusLineLiveData = new MutableLiveData<>();
-    private final MutableLiveData<String> statusLineLiveData2 = new MutableLiveData<>();
     private final MutableLiveData<Boolean> statusLineVisibleLiveData = new MutableLiveData<>(false);
     private final List<String> outputLines = new LinkedList<>();
     private String currentSessionId;
@@ -318,9 +317,6 @@ public class ClaudeWebSocketService extends Service {
         return statusLineLiveData;
     }
 
-    public LiveData<String> getStatusLineLiveData2() {
-        return statusLineLiveData2;
-    }
 
     public LiveData<Boolean> getStatusLineVisibleLiveData() {
         return statusLineVisibleLiveData;
@@ -421,28 +417,23 @@ public class ClaudeWebSocketService extends Service {
             lastStatusText = text;
         }
 
-        // Split into two lines
-        String line1 = text;
-        String line2 = "";
-
-        // If there's a newline, split
+        // Take only first line (remove any newline and everything after)
+        String line = text;
         int newlineIndex = text.indexOf('\n');
         if (newlineIndex >= 0) {
-            line1 = text.substring(0, newlineIndex);
-            line2 = text.substring(newlineIndex + 1);
+            line = text.substring(0, newlineIndex);
         }
 
-        // Add dots to first line
+        // Add dots
         if (dotCount > 0) {
             StringBuilder dots = new StringBuilder();
             for (int i = 0; i < dotCount; i++) {
                 dots.append(".");
             }
-            line1 = line1 + dots;
+            line = line + dots;
         }
 
-        statusLineLiveData.postValue(line1);
-        statusLineLiveData2.postValue(line2);
+        statusLineLiveData.postValue(line);
     }
 
     private void setStatusLineVisible(boolean visible) {

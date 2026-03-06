@@ -52,10 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton sendButton;
     private ImageButton micButton;
     private ImageButton newSessionButton;
-    private LinearLayout statusLineLayout;
-    private TextView statusLineText;
-    private TextView statusLineText2;
-    private TextView statusLineIcon;
+    private LinearLayout statusBarLayout;
 
     private boolean isRecording = false;
     private boolean isActivityVisible = false;
@@ -146,10 +143,7 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         outputText = findViewById(R.id.outputText);
         outputScrollView = findViewById(R.id.outputScrollView);
-        statusLineLayout = findViewById(R.id.statusLineLayout);
-        statusLineText = findViewById(R.id.statusLineText1);
-        statusLineText2 = findViewById(R.id.statusLineText2);
-        statusLineIcon = findViewById(R.id.statusLineIcon);
+        statusBarLayout = findViewById(R.id.statusBarLayout);
 
         textInput = findViewById(R.id.textInput);
         sendButton = findViewById(R.id.sendButton);
@@ -357,7 +351,11 @@ public class MainActivity extends AppCompatActivity {
         service.getStatusLiveData().observe(this, new Observer<ClaudeWebSocketService.Status>() {
             @Override
             public void onChanged(ClaudeWebSocketService.Status status) {
-                updateStatusText(status);
+                // 只有当没有过程信息时才更新状态文本
+                Boolean statusLineVisible = service.getStatusLineVisibleLiveData().getValue();
+                if (statusLineVisible == null || !statusLineVisible) {
+                    updateStatusText(status);
+                }
             }
         });
 
@@ -377,21 +375,27 @@ public class MainActivity extends AppCompatActivity {
         service.getStatusLineLiveData().observe(this, new Observer<String>() {
             @Override
             public void onChanged(String statusLine) {
-                statusLineText.setText(statusLine);
-            }
-        });
-
-        service.getStatusLineLiveData2().observe(this, new Observer<String>() {
-            @Override
-            public void onChanged(String statusLine2) {
-                statusLineText2.setText(statusLine2);
+                statusText.setText(statusLine);
             }
         });
 
         service.getStatusLineVisibleLiveData().observe(this, new Observer<Boolean>() {
             @Override
             public void onChanged(Boolean visible) {
-                statusLineLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
+                if (visible) {
+                    // 显示过程信息：橙色背景
+                    statusBarLayout.setBackgroundColor(0xFFFFF8E1);
+                    statusText.setTextColor(0xFFE65100);
+                } else {
+                    // 显示普通状态：恢复默认
+                    statusBarLayout.setBackgroundColor(0x00000000);
+                    statusText.setTextColor(0xFF666666);
+                    // 恢复显示当前状态
+                    ClaudeWebSocketService.Status status = service.getCurrentStatus();
+                    if (status != null) {
+                        updateStatusText(status);
+                    }
+                }
             }
         });
     }

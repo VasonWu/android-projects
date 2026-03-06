@@ -18,6 +18,7 @@
 
     <!-- 顶部操作栏 - 状态提示 + 新会话按钮 -->
     <LinearLayout
+        android:id="@+id/statusBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -34,7 +35,9 @@
             android:textSize="14sp"
             android:textColor="#666666"
             android:gravity="center|start"
-            android:padding="8dp" />
+            android:padding="8dp"
+            android:singleLine="true"
+            android:ellipsize="end" />
 
         <ImageButton
             android:id="@+id/newSessionButton"
@@ -52,60 +55,6 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#E0E0E0" />
-
-    <!-- 过程信息/状态行区域 - 两行显示 -->
-    <LinearLayout
-        android:id="@+id/statusLineLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="#FFF8E1"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/statusLineIcon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚡"
-            android:textSize="14sp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="top" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/statusLineText1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textSize="13sp"
-                android:textColor="#E65100"
-                android:singleLine="true"
-                android:ellipsize="end" />
-
-            <TextView
-                android:id="@+id/statusLineText2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textSize="12sp"
-                android:textColor="#EF6C00"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:layout_marginTop="2dp" />
-
-        </LinearLayout>
-
-    </LinearLayout>
 
     <!-- 输出区域 -->
     <ScrollView
