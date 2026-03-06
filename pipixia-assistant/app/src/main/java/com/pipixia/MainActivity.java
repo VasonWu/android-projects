@@ -382,15 +382,8 @@ public class MainActivity extends AppCompatActivity {
         service.getStatusLineVisibleLiveData().observe(this, new Observer<Boolean>() {
             @Override
             public void onChanged(Boolean visible) {
-                if (visible) {
-                    // 显示过程信息：橙色背景
-                    statusBarLayout.setBackgroundColor(0xFFFFF8E1);
-                    statusText.setTextColor(0xFFE65100);
-                } else {
-                    // 显示普通状态：恢复默认
-                    statusBarLayout.setBackgroundColor(0x00000000);
-                    statusText.setTextColor(0xFF666666);
-                    // 恢复显示当前状态
+                if (!visible) {
+                    // 没有过程信息时：恢复显示当前状态
                     ClaudeWebSocketService.Status status = service.getCurrentStatus();
                     if (status != null) {
                         updateStatusText(status);
