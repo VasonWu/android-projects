@@ -21,4 +21,8 @@ public class MessageType {
     public static final String TYPE_PROCESS_STARTED = "process_started";
     public static final String TYPE_PROCESS_CRASHED = "process_crashed";
     public static final String TYPE_PROCESS_STOPPED = "process_stopped";
+
+    // New message types for streaming and process info
+    public static final String TYPE_STATUS = "status";
+    public static final String TYPE_TOOL_USE = "tool_use";
 }

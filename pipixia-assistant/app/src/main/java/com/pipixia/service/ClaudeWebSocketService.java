@@ -62,8 +62,16 @@ public class ClaudeWebSocketService extends Service {
     private ClientIdManager clientIdManager;
     private final MutableLiveData<Status> statusLiveData = new MutableLiveData<>(Status.IDLE);
     private final MutableLiveData<String> outputLiveData = new MutableLiveData<>();
+    private final MutableLiveData<String> statusLineLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> statusLineVisibleLiveData = new MutableLiveData<>(false);
     private final List<String> outputLines = new LinkedList<>();
     private String currentSessionId;
+
+    // Flag to track if we're in a streaming response
+    private boolean isStreaming = false;
+    private StringBuilder currentResponseBuilder = new StringBuilder();
+    private boolean hasOutputPrefix = false;
+    private int lastOutputStartIndex = -1;
 
     // AudioPlayerManager binding
     private AudioPlayerManager audioPlayerManager;
@@ -145,11 +153,38 @@ public class ClaudeWebSocketService extends Service {
             public void onOutputReceived(String data) {
                 Log.d(TAG, "Output received: " + data);
                 setStatus(Status.RECEIVING);
-                appendOutput("\n🦐: " + data);
+                isStreaming = true;
+                currentResponseBuilder.append(data);
+
+                // 处理流式输出：首次添加前缀，后续只更新最后一行
+                if (!hasOutputPrefix) {
+                    // 首次输出，添加前缀
+                    appendOutput("\n🦐: " + currentResponseBuilder.toString());
+                    hasOutputPrefix = true;
+                    // 记录最后一个输出块的起始位置
+                    lastOutputStartIndex = outputLines.size() - 1;
+                } else {
+                    // 更新最后一个输出块
+                    if (lastOutputStartIndex >= 0 && lastOutputStartIndex < outputLines.size()) {
+                        // 移除旧的输出行
+                        while (outputLines.size() > lastOutputStartIndex) {
+                            outputLines.remove(outputLines.size() - 1);
+                        }
+                        // 添加新的完整输出
+                        String fullOutput = "🦐: " + currentResponseBuilder.toString();
+                        String[] lines = fullOutput.split("(?<=\\n)");
+                        for (String line : lines) {
+                            outputLines.add(line);
+                        }
+                        // 更新LiveData
+                        updateOutputLiveData();
+                    }
+                }
+
                 lastReceivedMessage = data;
                 // 如果MainActivity不可见，显示通知
                 if (!isMainActivityVisible) {
-                    showMessageNotification(data);
+                    showMessageNotification(currentResponseBuilder.toString());
                 } else {
                     cancelMessageNotification();
                 }
@@ -159,12 +194,24 @@ public class ClaudeWebSocketService extends Service {
             public void onErrorReceived(String data) {
                 Log.e(TAG, "Error received: " + data);
                 setStatus(Status.ERROR);
+                appendOutput("\n[错误] " + data);
             }
 
             @Override
             public void onExitReceived(int code) {
                 Log.d(TAG, "Exit received, code: " + code);
                 setStatus(Status.IDLE);
+                // Hide status line when done
+                setStatusLineVisible(false);
+                // Finalize the response
+                if (isStreaming && currentResponseBuilder.length() > 0) {
+                    // Keep the final output, don't clear
+                }
+                // Reset streaming state
+                isStreaming = false;
+                hasOutputPrefix = false;
+                lastOutputStartIndex = -1;
+                currentResponseBuilder = new StringBuilder();
             }
 
             @Override
@@ -198,6 +245,26 @@ public class ClaudeWebSocketService extends Service {
             @Override
             public void onProcessCrashed(String sessionId) {
                 Log.d(TAG, "Process crashed: " + sessionId);
+            }
+
+            @Override
+            public void onStatusReceived(String data) {
+                Log.d(TAG, "Status received: " + data);
+                // Show status line and update it
+                setStatusLineVisible(true);
+                setStatusLine(data);
+            }
+
+            @Override
+            public void onToolUseReceived(String name, String input, String display) {
+                Log.d(TAG, "Tool use received: " + name);
+                // Show tool use in status line
+                setStatusLineVisible(true);
+                setStatusLine("\uD83D\uDD27 调用工具: " + name);
+                // Also append tool info to output (optional, for history)
+                if (display != null && !display.isEmpty()) {
+                    appendOutput("\n" + display);
+                }
             }
         });
         setStatus(Status.CONNECTING);
@@ -242,6 +309,14 @@ public class ClaudeWebSocketService extends Service {
         return outputLiveData;
     }
 
+    public LiveData<String> getStatusLineLiveData() {
+        return statusLineLiveData;
+    }
+
+    public LiveData<Boolean> getStatusLineVisibleLiveData() {
+        return statusLineVisibleLiveData;
+    }
+
     public String getOutputBuffer() {
         StringBuilder sb = new StringBuilder();
         for (String line : outputLines) {
@@ -261,6 +336,11 @@ public class ClaudeWebSocketService extends Service {
     public void sendInput(String text) {
         if (webSocketClient != null && webSocketClient.isConnected()) {
             setStatus(Status.SENDING);
+            // Clear streaming state for new input
+            isStreaming = false;
+            hasOutputPrefix = false;
+            lastOutputStartIndex = -1;
+            currentResponseBuilder = new StringBuilder();
             appendOutput("\n🐢: " + text + "\n");
             webSocketClient.sendInput(text, currentSessionId);
             setStatus(Status.WAITING);
@@ -273,6 +353,11 @@ public class ClaudeWebSocketService extends Service {
         if (webSocketClient != null) {
             webSocketClient.sendCancel();
             setStatus(Status.IDLE);
+            setStatusLineVisible(false);
+            isStreaming = false;
+            hasOutputPrefix = false;
+            lastOutputStartIndex = -1;
+            currentResponseBuilder = new StringBuilder();
         }
     }
 
@@ -316,14 +401,20 @@ public class ClaudeWebSocketService extends Service {
         updateNotification();
     }
 
-    private void appendOutput(String text) {
-        String[] lines = text.split("(?<=\\n)");
-        for (String line : lines) {
-            outputLines.add(line);
-        }
+    private void setStatusLine(String text) {
+        statusLineLiveData.postValue(text);
+    }
 
+    private void setStatusLineVisible(boolean visible) {
+        statusLineVisibleLiveData.postValue(visible);
+    }
+
+    private void updateOutputLiveData() {
         while (outputLines.size() > MAX_HISTORY_LINES) {
             outputLines.remove(0);
+            if (lastOutputStartIndex > 0) {
+                lastOutputStartIndex--;
+            }
         }
 
         StringBuilder sb = new StringBuilder();
@@ -331,6 +422,15 @@ public class ClaudeWebSocketService extends Service {
             sb.append(line);
         }
         outputLiveData.postValue(sb.toString());
+    }
+
+    private void appendOutput(String text) {
+        String[] lines = text.split("(?<=\\n)");
+        for (String line : lines) {
+            outputLines.add(line);
+        }
+
+        updateOutputLiveData();
     }
 
     private int getStatusColor(Status status) {

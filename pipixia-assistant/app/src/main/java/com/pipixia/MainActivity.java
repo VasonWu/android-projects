@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -51,6 +52,9 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton sendButton;
     private ImageButton micButton;
     private ImageButton newSessionButton;
+    private LinearLayout statusLineLayout;
+    private TextView statusLineText;
+    private TextView statusLineIcon;
 
     private boolean isRecording = false;
     private boolean isActivityVisible = false;
@@ -141,6 +145,9 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         outputText = findViewById(R.id.outputText);
         outputScrollView = findViewById(R.id.outputScrollView);
+        statusLineLayout = findViewById(R.id.statusLineLayout);
+        statusLineText = findViewById(R.id.statusLineText);
+        statusLineIcon = findViewById(R.id.statusLineIcon);
 
         textInput = findViewById(R.id.textInput);
         sendButton = findViewById(R.id.sendButton);
@@ -362,6 +369,20 @@ public class MainActivity extends AppCompatActivity {
                 if (isActivityVisible && isServiceBound && service != null) {
                     service.cancelMessageNotification();
                 }
+            }
+        });
+
+        service.getStatusLineLiveData().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String statusLine) {
+                statusLineText.setText(statusLine);
+            }
+        });
+
+        service.getStatusLineVisibleLiveData().observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean visible) {
+                statusLineLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
             }
         });
     }

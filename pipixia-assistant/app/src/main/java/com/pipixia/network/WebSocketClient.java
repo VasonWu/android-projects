@@ -38,6 +38,8 @@ public class WebSocketClient {
         void onProcessStarted(String sessionId);
         void onProcessStopped(String sessionId, String reason);
         void onProcessCrashed(String sessionId);
+        void onStatusReceived(String data);
+        void onToolUseReceived(String name, String input, String display);
     }
 
     private final Gson gson = new Gson();
@@ -282,6 +284,28 @@ public class WebSocketClient {
         });
     }
 
+    private void notifyOnStatusReceived(final String data) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onStatusReceived(data);
+                }
+            }
+        });
+    }
+
+    private void notifyOnToolUseReceived(final String name, final String input, final String display) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    listener.onToolUseReceived(name, input, display);
+                }
+            }
+        });
+    }
+
     private class WebSocketClientImpl extends org.java_websocket.client.WebSocketClient {
         public WebSocketClientImpl(URI serverUri) {
             super(serverUri);
@@ -335,6 +359,21 @@ public class WebSocketClient {
                         notifyOnOutputReceived(data);
                     } else {
                         Log.w(TAG, "Output message missing 'data' field");
+                    }
+                } else if (MessageType.TYPE_STATUS.equals(type)) {
+                    if (jsonObj.has("data")) {
+                        String data = jsonObj.get("data").getAsString();
+                        Log.d(TAG, "Status data: " + data);
+                        notifyOnStatusReceived(data);
+                    }
+                } else if (MessageType.TYPE_TOOL_USE.equals(type)) {
+                    if (jsonObj.has("data")) {
+                        JsonObject dataObj = jsonObj.getAsJsonObject("data");
+                        String name = dataObj.has("name") ? dataObj.get("name").getAsString() : "";
+                        String input = dataObj.has("input") ? dataObj.get("input").toString() : "";
+                        String display = dataObj.has("display") ? dataObj.get("display").getAsString() : "";
+                        Log.d(TAG, "Tool use: name=" + name);
+                        notifyOnToolUseReceived(name, input, display);
                     }
                 } else if (MessageType.TYPE_ERROR.equals(type)) {
                     if (jsonObj.has("data")) {
