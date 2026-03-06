@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton newSessionButton;
     private LinearLayout statusLineLayout;
     private TextView statusLineText;
+    private TextView statusLineText2;
     private TextView statusLineIcon;
 
     private boolean isRecording = false;
@@ -146,7 +147,8 @@ public class MainActivity extends AppCompatActivity {
         outputText = findViewById(R.id.outputText);
         outputScrollView = findViewById(R.id.outputScrollView);
         statusLineLayout = findViewById(R.id.statusLineLayout);
-        statusLineText = findViewById(R.id.statusLineText);
+        statusLineText = findViewById(R.id.statusLineText1);
+        statusLineText2 = findViewById(R.id.statusLineText2);
         statusLineIcon = findViewById(R.id.statusLineIcon);
 
         textInput = findViewById(R.id.textInput);
@@ -376,6 +378,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onChanged(String statusLine) {
                 statusLineText.setText(statusLine);
+            }
+        });
+
+        service.getStatusLineLiveData2().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String statusLine2) {
+                statusLineText2.setText(statusLine2);
             }
         });
 

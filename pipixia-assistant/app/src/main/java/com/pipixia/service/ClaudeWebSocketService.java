@@ -63,9 +63,14 @@ public class ClaudeWebSocketService extends Service {
     private final MutableLiveData<Status> statusLiveData = new MutableLiveData<>(Status.IDLE);
     private final MutableLiveData<String> outputLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> statusLineLiveData = new MutableLiveData<>();
+    private final MutableLiveData<String> statusLineLiveData2 = new MutableLiveData<>();
     private final MutableLiveData<Boolean> statusLineVisibleLiveData = new MutableLiveData<>(false);
     private final List<String> outputLines = new LinkedList<>();
     private String currentSessionId;
+
+    // Status line dot animation
+    private String lastStatusText = "";
+    private int dotCount = 0;
 
     // Flag to track if we're in a streaming response
     private boolean isStreaming = false;
@@ -313,6 +318,10 @@ public class ClaudeWebSocketService extends Service {
         return statusLineLiveData;
     }
 
+    public LiveData<String> getStatusLineLiveData2() {
+        return statusLineLiveData2;
+    }
+
     public LiveData<Boolean> getStatusLineVisibleLiveData() {
         return statusLineVisibleLiveData;
     }
@@ -402,7 +411,38 @@ public class ClaudeWebSocketService extends Service {
     }
 
     private void setStatusLine(String text) {
-        statusLineLiveData.postValue(text);
+        // Compare with last status text
+        if (text.equals(lastStatusText)) {
+            // Same text, increment dot count (0-5)
+            dotCount = (dotCount + 1) % 6;
+        } else {
+            // Different text, reset dot count
+            dotCount = 0;
+            lastStatusText = text;
+        }
+
+        // Split into two lines
+        String line1 = text;
+        String line2 = "";
+
+        // If there's a newline, split
+        int newlineIndex = text.indexOf('\n');
+        if (newlineIndex >= 0) {
+            line1 = text.substring(0, newlineIndex);
+            line2 = text.substring(newlineIndex + 1);
+        }
+
+        // Add dots to first line
+        if (dotCount > 0) {
+            StringBuilder dots = new StringBuilder();
+            for (int i = 0; i < dotCount; i++) {
+                dots.append(".");
+            }
+            line1 = line1 + dots;
+        }
+
+        statusLineLiveData.postValue(line1);
+        statusLineLiveData2.postValue(line2);
     }
 
     private void setStatusLineVisible(boolean visible) {
