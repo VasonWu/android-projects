@@ -346,7 +346,11 @@ public class ClaudeWebSocketService extends Service {
             hasOutputPrefix = false;
             lastOutputStartIndex = -1;
             currentResponseBuilder = new StringBuilder();
+
+            // 确保输出以换行符结尾，强制用户输入显示在新行
+            ensureOutputEndsWithNewline();
             appendOutput("\n🐢: " + text + "\n");
+
             webSocketClient.sendInput(text, currentSessionId);
             setStatus(Status.WAITING);
         } else {
@@ -455,10 +459,23 @@ public class ClaudeWebSocketService extends Service {
         outputLiveData.postValue(sb.toString());
     }
 
+    private void ensureOutputEndsWithNewline() {
+        if (!outputLines.isEmpty()) {
+            String lastLine = outputLines.get(outputLines.size() - 1);
+            if (!lastLine.endsWith("\n")) {
+                // 添加一个只包含换行符的行，确保用户输入从新行开始
+                outputLines.add("\n");
+            }
+        }
+    }
+
     private void appendOutput(String text) {
         String[] lines = text.split("(?<=\\n)");
         for (String line : lines) {
-            outputLines.add(line);
+            // 过滤空字符串但保留只包含换行符的行
+            if (!line.isEmpty() || text.startsWith("\n") && lines.length == 1) {
+                outputLines.add(line);
+            }
         }
 
         updateOutputLiveData();
