@@ -25,18 +25,37 @@
         android:paddingStart="12dp"
         android:paddingEnd="12dp">
 
-        <TextView
-            android:id="@+id/statusText"
+        <ViewSwitcher
+            android:id="@+id/statusViewSwitcher"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="准备就绪"
-            android:textSize="14sp"
-            android:textColor="#666666"
-            android:gravity="center|start"
-            android:padding="8dp"
-            android:singleLine="true"
-            android:ellipsize="end" />
+            android:layout_weight="1">
+
+            <!-- 视图1: 普通状态文本 -->
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="准备就绪"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:gravity="center|start"
+                android:padding="8dp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <!-- 视图2: 龙虾动画区域 -->
+            <TextView
+                android:id="@+id/lobsterAnimationText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="18sp"
+                android:gravity="center|start"
+                android:padding="8dp"
+                android:singleLine="true" />
+
+        </ViewSwitcher>
 
         <ImageButton
             android:id="@+id/newSessionButton"

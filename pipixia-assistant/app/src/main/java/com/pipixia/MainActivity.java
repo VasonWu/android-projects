@@ -20,6 +20,9 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.ViewSwitcher;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 
@@ -53,6 +56,12 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton micButton;
     private ImageButton newSessionButton;
     private LinearLayout statusBarLayout;
+    private ViewSwitcher statusViewSwitcher;
+    private TextView lobsterAnimationText;
+    private Handler animationHandler;
+    private Runnable animationRunnable;
+    private int lobsterPosition = 0;
+    private boolean isAnimationRunning = false;
 
     private boolean isRecording = false;
     private boolean isActivityVisible = false;
@@ -140,7 +149,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        statusViewSwitcher = findViewById(R.id.statusViewSwitcher);
         statusText = findViewById(R.id.statusText);
+        lobsterAnimationText = findViewById(R.id.lobsterAnimationText);
         outputText = findViewById(R.id.outputText);
         outputScrollView = findViewById(R.id.outputScrollView);
         statusBarLayout = findViewById(R.id.statusBarLayout);
@@ -149,6 +160,9 @@ public class MainActivity extends AppCompatActivity {
         sendButton = findViewById(R.id.sendButton);
         micButton = findViewById(R.id.micButton);
         newSessionButton = findViewById(R.id.newSessionButton);
+
+        // 初始化动画Handler
+        animationHandler = new Handler(Looper.getMainLooper());
 
         // 初始化 Markwon
         markwon = Markwon.create(this);
@@ -372,18 +386,15 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        service.getStatusLineLiveData().observe(this, new Observer<String>() {
-            @Override
-            public void onChanged(String statusLine) {
-                statusText.setText(statusLine);
-            }
-        });
-
         service.getStatusLineVisibleLiveData().observe(this, new Observer<Boolean>() {
             @Override
             public void onChanged(Boolean visible) {
-                if (!visible) {
-                    // 没有过程信息时：恢复显示当前状态
+                if (visible) {
+                    // 显示龙虾动画
+                    startLobsterAnimation();
+                } else {
+                    // 停止动画，恢复显示当前状态
+                    stopLobsterAnimation();
                     ClaudeWebSocketService.Status status = service.getCurrentStatus();
                     if (status != null) {
                         updateStatusText(status);
@@ -391,6 +402,57 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void startLobsterAnimation() {
+        if (isAnimationRunning) return;
+
+        isAnimationRunning = true;
+        lobsterPosition = 0;
+
+        // 切换到动画视图
+        if (statusViewSwitcher.getDisplayedChild() != 1) {
+            statusViewSwitcher.showNext();
+        }
+
+        animationRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAnimationRunning) return;
+
+                // 构建龙虾位置字符串 - 使用空格移动龙虾
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < lobsterPosition; i++) {
+                    sb.append(" ");
+                }
+                sb.append("🦞");
+
+                lobsterAnimationText.setText(sb.toString());
+
+                // 增加位置 - 调整速度
+                lobsterPosition++;
+                if (lobsterPosition > 30) {  // 假设30个空格到右边
+                    lobsterPosition = 0;
+                }
+
+                // 继续动画
+                animationHandler.postDelayed(this, 100);  // 100ms更新一次
+            }
+        };
+
+        animationHandler.post(animationRunnable);
+    }
+
+    private void stopLobsterAnimation() {
+        isAnimationRunning = false;
+        if (animationHandler != null && animationRunnable != null) {
+            animationHandler.removeCallbacks(animationRunnable);
+        }
+
+        // 切换回状态文本视图
+        if (statusViewSwitcher.getDisplayedChild() != 0) {
+            statusViewSwitcher.showPrevious();
+        }
     }
 
     private void updateStatusText(ClaudeWebSocketService.Status status) {
@@ -490,6 +552,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopLobsterAnimation();  // 停止动画
         if (isServiceBound) {
             unbindService(serviceConnection);
             isServiceBound = false;
