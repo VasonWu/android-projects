@@ -4,8 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_gravity="bottom"
     android:orientation="vertical"
-    android:background="@drawable/bottom_sheet_background"
-    android:maxHeight="400dp">
+    android:background="@drawable/bottom_sheet_background">
 
     <!-- 顶部拖拽条 -->
     <View
