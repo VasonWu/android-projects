@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace 'com.example.helloworld'
-    compileSdk 33
+    compileSdk 19
 
     defaultConfig {
         applicationId "com.example.helloworld"
-        minSdk 23
-        targetSdk 33
-        versionCode 2
-        versionName "1.1"
+        minSdk 19
+        targetSdk 19
+        versionCode 3
+        versionName "1.2"
     }
 
     buildTypes {
@@ -28,7 +28,4 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }

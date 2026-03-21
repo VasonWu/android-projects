@@ -11,7 +11,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextView textView = findViewById(R.id.textView);
-        textView.setText("Hello World! v1.1 (06:14:20)");
+        TextView textView = (TextView) findViewById(R.id.textView);
+        textView.setText("Hello Kindle! v1.2\n(API 19 compatible)");
     }
 }
