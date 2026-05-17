@@ -12,7 +12,8 @@ public class PhoneStateReceiver extends BroadcastReceiver {
     private static NtfyClient ntfyClient;
     private static String lastPhoneNumber;
     private static long callStartTime;
-    private static int lastState = TelephonyManager.CALL_STATE_IDLE;
+    private static String lastState = TelephonyManager.EXTRA_STATE_IDLE;
+    private static boolean wasRinging = false;
 
     public static void setNtfyClient(NtfyClient client) {
         ntfyClient = client;
@@ -37,18 +38,23 @@ public class PhoneStateReceiver extends BroadcastReceiver {
         }
 
         if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
-            if (lastState == TelephonyManager.CALL_STATE_OFFHOOK) {
+            if (wasRinging) {
+                handleMissedCall();
+            } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(lastState)) {
                 handleCallEnded();
             }
-            lastState = TelephonyManager.CALL_STATE_IDLE;
+            lastState = TelephonyManager.EXTRA_STATE_IDLE;
+            wasRinging = false;
         } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
-            if (lastState == TelephonyManager.CALL_STATE_RINGING) {
+            if (TelephonyManager.EXTRA_STATE_RINGING.equals(lastState)) {
                 handleCallAnswered(phoneNumber);
+                wasRinging = false;
             }
-            lastState = TelephonyManager.CALL_STATE_OFFHOOK;
+            lastState = TelephonyManager.EXTRA_STATE_OFFHOOK;
         } else if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
             handleIncomingCall(phoneNumber);
-            lastState = TelephonyManager.CALL_STATE_RINGING;
+            lastState = TelephonyManager.EXTRA_STATE_RINGING;
+            wasRinging = true;
         }
     }
 
@@ -79,11 +85,17 @@ public class PhoneStateReceiver extends BroadcastReceiver {
         Log.i(TAG, "Call ended: " + lastPhoneNumber + ", duration: " + callDuration + "ms");
 
         if (ntfyClient != null && lastPhoneNumber != null) {
-            if (lastState == TelephonyManager.CALL_STATE_RINGING) {
-                ntfyClient.sendMissedCall(lastPhoneNumber);
-            } else {
-                ntfyClient.sendCallEnded(lastPhoneNumber, callDuration);
-            }
+            ntfyClient.sendCallEnded(lastPhoneNumber, callDuration);
+        } else if (ntfyClient == null) {
+            Log.w(TAG, "NtfyClient not initialized");
+        }
+    }
+
+    private void handleMissedCall() {
+        Log.i(TAG, "Missed call from: " + lastPhoneNumber);
+
+        if (ntfyClient != null && lastPhoneNumber != null) {
+            ntfyClient.sendMissedCall(lastPhoneNumber);
         } else if (ntfyClient == null) {
             Log.w(TAG, "NtfyClient not initialized");
         }

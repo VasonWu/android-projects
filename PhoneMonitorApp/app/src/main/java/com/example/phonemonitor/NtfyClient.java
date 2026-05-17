@@ -44,7 +44,7 @@ public class NtfyClient {
     public NtfyClient(Context context) {
         this.prefs = new PreferencesHelper(context);
         this.pendingMessages = new ConcurrentLinkedQueue<>();
-        this.isConnected = false;
+        this.isConnected = true;
 
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)

@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
         setupViews();
         loadPreferences();
         requestPermissions();
+        startMonitorService();
     }
 
     private void setupViews() {
@@ -122,13 +123,11 @@ public class MainActivity extends AppCompatActivity {
     private void requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{
-                    Manifest.permission.INTERNET,
                     Manifest.permission.RECEIVE_SMS,
                     Manifest.permission.READ_SMS,
                     Manifest.permission.READ_PHONE_STATE,
                     Manifest.permission.READ_CALL_LOG,
-                    Manifest.permission.POST_NOTIFICATIONS,
-                    Manifest.permission.RECEIVE_BOOT_COMPLETED
+                    Manifest.permission.READ_PHONE_NUMBERS
             }, PERMISSION_REQUEST_CODE);
         }
     }
