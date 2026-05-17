@@ -54,7 +54,7 @@
 
         <receiver
             android:name=".PhoneStateReceiver"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />

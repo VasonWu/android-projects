@@ -122,13 +122,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{
-                    Manifest.permission.RECEIVE_SMS,
-                    Manifest.permission.READ_SMS,
-                    Manifest.permission.READ_PHONE_STATE,
-                    Manifest.permission.READ_CALL_LOG,
-                    Manifest.permission.READ_PHONE_NUMBERS
-            }, PERMISSION_REQUEST_CODE);
+            java.util.List<String> permissions = new java.util.ArrayList<>();
+            permissions.add(Manifest.permission.RECEIVE_SMS);
+            permissions.add(Manifest.permission.READ_SMS);
+            permissions.add(Manifest.permission.READ_PHONE_STATE);
+            permissions.add(Manifest.permission.READ_CALL_LOG);
+            permissions.add(Manifest.permission.READ_PHONE_NUMBERS);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+            requestPermissions(permissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
         }
     }
 

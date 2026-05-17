@@ -5,8 +5,9 @@ import android.util.Log;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +21,7 @@ import okhttp3.Response;
 public class NtfyClient {
     private static final String TAG = "NtfyClient";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
     private PreferencesHelper prefs;
     private OkHttpClient client;
@@ -58,15 +60,24 @@ public class NtfyClient {
     }
 
     public void sendIncomingCall(String phoneNumber) {
-        send("来电 - " + phoneNumber, "来电时间: " + System.currentTimeMillis(), "call,phone", "high");
+        send("来电 - " + phoneNumber, "来电时间: " + DATE_FORMAT.format(new Date()), "call,phone", "high");
     }
 
     public void sendMissedCall(String phoneNumber) {
-        send("未接来电 - " + phoneNumber, "未接时间: " + System.currentTimeMillis(), "call,phone", "default");
+        send("未接来电 - " + phoneNumber, "未接时间: " + DATE_FORMAT.format(new Date()), "call,phone", "default");
     }
 
     public void sendCallEnded(String phoneNumber, long duration) {
-        send("通话结束 - " + phoneNumber, "通话时长: " + duration + "ms", "call,phone", "default");
+        long seconds = duration / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        String durationStr;
+        if (minutes > 0) {
+            durationStr = minutes + "分" + seconds + "秒";
+        } else {
+            durationStr = seconds + "秒";
+        }
+        send("通话结束 - " + phoneNumber, "通话时长: " + durationStr, "call,phone", "default");
     }
 
     private void send(String title, String message, String tags, String priority) {
