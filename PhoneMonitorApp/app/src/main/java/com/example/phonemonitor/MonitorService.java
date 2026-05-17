@@ -27,9 +27,11 @@ public class MonitorService extends Service {
         ntfyClient = new NtfyClient(this);
         SmsReceiver.setNtfyClient(ntfyClient);
         PhoneStateReceiver.setNtfyClient(ntfyClient);
+        Log.i(TAG, "NtfyClient set for receivers");
 
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
+        Log.i(TAG, "Foreground service started");
     }
 
     @Override

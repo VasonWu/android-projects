@@ -20,9 +20,12 @@ public class PhoneStateReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.i(TAG, "onReceive: action=" + intent.getAction());
         if (intent != null && TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(intent.getAction())) {
             String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
             String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+            Log.i(TAG, "onReceive: state=" + state + ", phoneNumber=" + phoneNumber);
+            Log.i(TAG, "onReceive: ntfyClient=" + (ntfyClient != null ? "initialized" : "null"));
 
             handleStateChange(state, phoneNumber);
         }
