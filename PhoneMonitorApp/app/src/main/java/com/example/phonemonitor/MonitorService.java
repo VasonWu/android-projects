@@ -33,21 +33,26 @@ public class MonitorService extends Service {
 
         ntfyClient = new NtfyClient(this);
         SmsReceiver.setNtfyClient(ntfyClient);
-        PhoneStateReceiver.setNtfyClient(ntfyClient);
-        Log.i(TAG, "NtfyClient set for receivers");
+        Log.i(TAG, "NtfyClient set for SmsReceiver");
 
-        // Register PhoneStateListener for call state monitoring (deprecated but still works without carrier privileges)
-        telephonyManager = getSystemService(TelephonyManager.class);
-        if (telephonyManager != null) {
-            phoneStateListener = new PhoneStateListener() {
-                @Override
-                public void onCallStateChanged(int state, String phoneNumber) {
-                    Log.i(TAG, "Phone state changed: " + state + ", phoneNumber: " + phoneNumber);
-                    handleStateChange(state, phoneNumber);
-                }
-            };
-            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
-            Log.i(TAG, "PhoneStateListener registered");
+        // Try to register PhoneStateListener, but don't crash if it fails
+        try {
+            telephonyManager = getSystemService(TelephonyManager.class);
+            if (telephonyManager != null) {
+                phoneStateListener = new PhoneStateListener() {
+                    @Override
+                    public void onCallStateChanged(int state, String phoneNumber) {
+                        Log.i(TAG, "Phone state changed: " + state + ", phoneNumber: " + phoneNumber);
+                        handleStateChange(state, phoneNumber);
+                    }
+                };
+                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                Log.i(TAG, "PhoneStateListener registered");
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "Failed to register PhoneStateListener (no READ_PHONE_STATE permission)", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to register PhoneStateListener", e);
         }
 
         createNotificationChannel();
@@ -69,9 +74,13 @@ public class MonitorService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (telephonyManager != null && phoneStateListener != null) {
-            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-            Log.i(TAG, "PhoneStateListener unregistered");
+        try {
+            if (telephonyManager != null && phoneStateListener != null) {
+                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+                Log.i(TAG, "PhoneStateListener unregistered");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to unregister PhoneStateListener", e);
         }
         Log.i(TAG, "Service destroyed");
     }
