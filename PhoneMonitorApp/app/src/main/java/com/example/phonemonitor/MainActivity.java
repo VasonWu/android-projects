@@ -26,6 +26,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText retryEditText;
     private Button saveButton;
     private Button testButton;
+    private Button testSmsButton;
+    private Button testCallButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
         retryEditText = findViewById(R.id.retryEditText);
         saveButton = findViewById(R.id.saveButton);
         testButton = findViewById(R.id.testButton);
+        testSmsButton = findViewById(R.id.testSmsButton);
+        testCallButton = findViewById(R.id.testCallButton);
 
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -61,6 +65,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 sendTestMessage();
+            }
+        });
+
+        testSmsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendTestSms();
+            }
+        });
+
+        testCallButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendTestCall();
             }
         });
     }
@@ -114,6 +132,38 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(MainActivity.this, "测试消息已发送", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void sendTestSms() {
+        savePreferences();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ntfyClient.sendSms("10086", "测试短信内容：这是一条测试短信通知！");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "测试短信通知已发送", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void sendTestCall() {
+        savePreferences();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ntfyClient.sendIncomingCall("13800138000");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "测试来电通知已发送", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
