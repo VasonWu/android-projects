@@ -18,8 +18,17 @@ public class SmsReceiver extends BroadcastReceiver {
         ntfyClient = client;
     }
 
+    private static NtfyClient getNtfyClient(Context context) {
+        if (ntfyClient == null) {
+            ntfyClient = new NtfyClient(context.getApplicationContext());
+            Log.i(TAG, "NtfyClient initialized in SmsReceiver");
+        }
+        return ntfyClient;
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.i(TAG, "onReceive: " + intent.getAction());
         if (intent != null && SMS_RECEIVED.equals(intent.getAction())) {
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
@@ -43,11 +52,15 @@ public class SmsReceiver extends BroadcastReceiver {
                         }
 
                         Log.i(TAG, "Received SMS from: " + sender);
-                        if (ntfyClient != null) {
-                            ntfyClient.sendSms(sender, content.toString());
-                        } else {
-                            Log.w(TAG, "NtfyClient not initialized");
-                        }
+                        NtfyClient client = getNtfyClient(context);
+                        final String finalSender = sender != null ? sender : "未知号码";
+                        final String finalContent = content.toString();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                client.sendSms(finalSender, finalContent);
+                            }
+                        }).start();
                     }
                 }
             }

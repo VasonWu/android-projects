@@ -10,14 +10,40 @@ android {
         applicationId "com.example.phonemonitor"
         minSdk 31
         targetSdk 31
-        versionCode 5
-        versionName "1.4"
+        versionCode 6
+        versionName "1.5"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    // Use fixed keystore for consistent signatures
+    def keystoreFile = file("../keystore/debug.keystore")
+    if (keystoreFile.exists()) {
+        signingConfigs {
+            debug {
+                storeFile keystoreFile
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+        buildTypes {
+            debug {
+                signingConfig signingConfigs.debug
+                minifyEnabled false
+            }
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
+        }
+    } else {
+        buildTypes {
+            debug {
+                minifyEnabled false
+            }
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
         }
     }
 

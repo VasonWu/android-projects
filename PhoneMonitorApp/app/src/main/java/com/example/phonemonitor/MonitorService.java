@@ -83,13 +83,22 @@ public class MonitorService extends Service {
             lastPhoneNumber = phoneNumber;
         }
 
+        final NtfyClient client = ntfyClient;
+        final String finalPhoneNumber = phoneNumber;
+        final String finalLastPhoneNumber = lastPhoneNumber;
+
         switch (state) {
             case TelephonyManager.CALL_STATE_RINGING:
                 Log.i(TAG, "Incoming call detected from: " + phoneNumber);
                 isRinging = true;
                 isOffhook = false;
-                if (ntfyClient != null) {
-                    ntfyClient.sendIncomingCall(phoneNumber != null ? phoneNumber : "来电");
+                if (client != null) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            client.sendIncomingCall(finalPhoneNumber != null ? finalPhoneNumber : "来电");
+                        }
+                    }).start();
                 }
                 break;
 
@@ -103,13 +112,23 @@ public class MonitorService extends Service {
             case TelephonyManager.CALL_STATE_IDLE:
                 if (isRinging) {
                     Log.i(TAG, "Missed call detected from: " + lastPhoneNumber);
-                    if (ntfyClient != null) {
-                        ntfyClient.sendMissedCall(lastPhoneNumber != null ? lastPhoneNumber : "未接来电");
+                    if (client != null) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                client.sendMissedCall(finalLastPhoneNumber != null ? finalLastPhoneNumber : "未接来电");
+                            }
+                        }).start();
                     }
                 } else if (isOffhook) {
                     Log.i(TAG, "Call ended: " + lastPhoneNumber);
-                    if (ntfyClient != null) {
-                        ntfyClient.sendCallEnded(lastPhoneNumber != null ? lastPhoneNumber : "通话结束", 0);
+                    if (client != null) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                client.sendCallEnded(finalLastPhoneNumber != null ? finalLastPhoneNumber : "通话结束", 0);
+                            }
+                        }).start();
                     }
                 }
                 isRinging = false;
