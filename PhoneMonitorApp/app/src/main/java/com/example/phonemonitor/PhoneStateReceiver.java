@@ -33,25 +33,19 @@ public class PhoneStateReceiver extends BroadcastReceiver {
             return;
         }
 
-        switch (state) {
-            case TelephonyManager.EXTRA_STATE_IDLE:
-                if (lastState == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    handleCallEnded();
-                }
-                lastState = TelephonyManager.CALL_STATE_IDLE;
-                break;
-
-            case TelephonyManager.EXTRA_STATE_OFFHOOK:
-                if (lastState == TelephonyManager.CALL_STATE_RINGING) {
-                    handleCallAnswered(phoneNumber);
-                }
-                lastState = TelephonyManager.CALL_STATE_OFFHOOK;
-                break;
-
-            case TelephonyManager.EXTRA_STATE_RINGING:
-                handleIncomingCall(phoneNumber);
-                lastState = TelephonyManager.CALL_STATE_RINGING;
-                break;
+        if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
+            if (lastState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                handleCallEnded();
+            }
+            lastState = TelephonyManager.CALL_STATE_IDLE;
+        } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
+            if (lastState == TelephonyManager.CALL_STATE_RINGING) {
+                handleCallAnswered(phoneNumber);
+            }
+            lastState = TelephonyManager.CALL_STATE_OFFHOOK;
+        } else if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
+            handleIncomingCall(phoneNumber);
+            lastState = TelephonyManager.CALL_STATE_RINGING;
         }
     }
 
