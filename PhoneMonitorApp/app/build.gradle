@@ -10,8 +10,8 @@ android {
         applicationId "com.example.phonemonitor"
         minSdk 31
         targetSdk 31
-        versionCode 9
-        versionName "1.8"
+        versionCode 10
+        versionName "1.9"
     }
 
     // Use fixed keystore for consistent signatures
